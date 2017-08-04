@@ -1,0 +1,59 @@
+#!/bin/bash
+# =============================================================================
+# dynutil v2.0
+# (c) 2009  Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2005, Petr Kulhanek, kulhanek@chemi.muni.cz
+#           Martin Petrek, petrek@chemi.muni.cz
+# =============================================================================
+# -----------------------------------------------------------------------------
+# extract-minout - extract necessary information from minimization output
+#
+# usage: extract-minout <file1> [file2 ...]
+#
+# -----------------------------------------------------------------------------
+
+# check input -----------------------------------------------------------------
+
+if [ "$#" -eq 0 ]; then
+    echo ""
+    echo " ERROR: None arguments are provided !"
+    echo ""
+    exit 1
+fi
+
+# determine full path to the script -------------------------------------------
+RELPATH=`dirname $0`
+if [ -z "$RELPATH" ]; then
+    FULPATH=`type $0`
+else
+    FULPATH=`cd $PWD; cd $RELPATH; pwd`
+fi
+
+# determine DYNUTIL_DIR
+DYNUTIL_DIR=`dirname $FULPATH`
+
+if [ "$DYNUTIL_DIR" == "" ]; then
+    echo ""
+    echo " ERROR: $DYNUTIL_DIR variable is not set!"
+    echo ""
+    exit 1
+fi
+
+# main part --------------------------------------------------------------------
+
+ERROR_FILE=/tmp/$USER.$$
+
+cat $* 2> $ERROR_FILE | awk -f $DYNUTIL_DIR/lib/awk/extract-minout.awk 
+
+if [ "`cat $ERROR_FILE 2> /dev/null`" != "" ]; then
+    echo ""
+    echo " ERROR: Error occured during extraction !"
+    echo "        Error message follows:"
+    echo ""
+    cat $ERROR_FILE
+    echo ""
+    rm -f $ERROR_FILE
+    exit 1
+fi
+
+rm -f $ERROR_FILE

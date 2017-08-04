@@ -1,0 +1,72 @@
+#!/usr/bin/env infinity-env
+# DO NOT CHANGE LINE BELOW ----------------------------------------------------
+# DO NOT CHANGE LINE ABOVE ----------------------------------------------------
+# =============================================================================
+# dynutil v3.0
+# (c) 2012       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2009       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2005, 2006 Petr Kulhanek, kulhanek@chemi.muni.cz
+# =============================================================================
+# -----------------------------------------------------------------------------
+# pprod-starter - input script for production dynamics
+# -----------------------------------------------------------------------------
+
+# WARNING: this job type does not support automatic restart of crashed job!!!!
+#          in the case of failure, please update following variables:
+#                   PRECYCLE_CRD
+#                   PRECYCLE_START
+#                   PRECYCLE_STOP
+#           and start a new job
+
+# input topology --------------------------------------------------------------
+# file name without path, this file has to be present in working directory
+export PPROD_TOP=""
+
+# input coordinates -----------------------------------------------------------
+# file name without path, this file has to be present in working directory
+# this file is used only for first production run
+export PPROD_CRD=""
+
+# control file for MD it has to be compatible with used MD program ------------
+# file name without path, this file has to be presented in working directory
+export PPROD_CONTROL="prod.in"
+
+# transform control file (YES/NO) ---------------------------------------------
+# if YES then the RANDOM key is substituted by a random key
+export PPROD_TRANSFORM_CONTROL="YES"
+
+# index of first production stage ---------------------------------------------
+export PPROD_START="1"
+
+# index of final production stage ---------------------------------------------
+export PPROD_STOP=""
+
+# compress trajectory file by compressor --------------------------------------
+# supported compressors:
+#   empty string - no compression
+#   gzip
+#   bzip2
+export PPROD_COMPRESS_TRAJ=""
+
+# file name format ------------------------------------------------------------
+# it determine the base name of produced files (syntax according to printf)
+export PPROD_NAME_FORMAT="prod%03d"
+
+# programs to perform MD -------------------------------------------------------
+export MD_CORE="pmemd"
+export MD_MODULE="amber:14.0"
+
+#------------------------------------------------------------------------------
+# THIS IS EXECUTION PART, PLEASE DO NOT CHANGE IT !! ==========================
+#------------------------------------------------------------------------------
+
+# do not execute if some parameter is specified
+# this is used by INFINITY autodetection plugin
+
+if [ $# -eq 0 ]; then
+      module add dynutil-new:${DYNUTIL_ALL_VERSION}
+      module add $MD_MODULE
+      pprod
+fi
+
+

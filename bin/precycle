@@ -1,0 +1,868 @@
+#!/bin/bash
+# =============================================================================
+# dynutil v2.0
+# (c) 2009       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2005, 2006 Petr Kulhanek, kulhanek@chemi.muni.cz
+# =============================================================================
+# -----------------------------------------------------------------------------
+# precycle - command for restartable production dynamics
+# -----------------------------------------------------------------------------
+
+# input variables -------------------------------------------------------------
+
+# MD_MODULE                     - module containing MD_CORE
+# MD_CORE                       - program for calculation
+
+# PRECYCLE_TOP                  - topology
+# PRECYCLE_CRD                  - coordinates
+
+# PRECYCLE_CONTROL              - control file
+# PRECYCLE_TRANSFORM_CONTROL    - transform control file (YES/NO)
+#                                 (set the RANDOM key to a random value)
+
+# PRECYCLE_START                - start offset
+# PRECYCLE_STOP                 - stop offset
+# PRECYCLE_NAME_FORMAT          - name of root in printf format (printf format)
+# PRECYCLE_COMPRESS_TRAJ        - compressor name or empty string
+
+# from previous run
+# _PRECYCLE_STAGE               - current stage
+
+# -----------------------------------------------------------------------------
+# print header
+
+echo ""
+echo "================================================================================"
+echo "|                                                                              |"
+echo "|            PRECYCLE - performs restartable production dynamics               |"
+echo "|       (c) 2004,2005,2006,2009,2012 Petr Kulhanek, kulhanek@chemi.muni.cz          |"
+echo "|                                                                              |"
+echo "================================================================================"
+echo ""
+
+# -----------------------------------------------------------------------------
+# check syntax
+
+echo " 1. Checking syntax ..."
+
+_ERROR=0
+
+# input topology ----------------------
+
+if [ "$PRECYCLE_TOP" == "" ]; then
+    echo ""
+    echo " ERROR: PRECYCLE_TOP variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+else
+    if ! [ -f $PRECYCLE_TOP ]; then
+        echo ""
+        echo " ERROR: Topology file \"$PRECYCLE_TOP\" does not exist!"
+        echo ""
+        _ERROR=1
+    fi
+fi
+
+# input restart file ------------------
+
+if [ "$PRECYCLE_CRD" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PRECYCLE_CRD variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+else
+    if ! [ -f $PRECYCLE_CRD ]; then
+        if [ "$_ERROR" == "0" ]; then echo ""; fi
+        echo " ERROR: Initial restart file \"$PRECYCLE_CRD\" does not exist!"
+        echo ""
+        _ERROR=1
+    fi
+fi
+
+# control file ------------------------
+
+if [ "$PRECYCLE_CONTROL" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PRECYCLE_CONTROL variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+else
+    if ! [ -f $PRECYCLE_CONTROL ]; then
+        if [ "$_ERROR" == "0" ]; then echo ""; fi
+        echo " ERROR: Control file \"$PRECYCLE_CONTROL\" does not exist!"
+        echo ""
+        _ERROR=1
+    fi
+fi
+
+# number of first run -----------------
+
+if [ "$PRECYCLE_START" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PRECYCLE_START variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+fi
+
+expr $PRECYCLE_START + 1 &>/dev/null
+
+if [ $? -ne 0 ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: Variable PRECYCLE_START is not a number!"
+    echo ""
+    _ERROR=1
+fi
+
+# number of last run ------------------
+
+if [ "$PRECYCLE_STOP" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PRECYCLE_STOP variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+fi
+
+expr $PRECYCLE_STOP + 1 &>/dev/null
+
+if [ $? -ne 0 ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: Variable PRECYCLE_STOP is not a number!"
+    echo ""
+    _ERROR=1
+fi
+
+# name format -------------------------
+
+if [ "$PRECYCLE_NAME_FORMAT" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PRECYCLE_NAME_FORMAT variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+fi
+
+printf "$PRECYCLE_NAME_FORMAT" 1 &> /dev/null
+
+if [ $? -ne 0 ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: Variable PRECYCLE_NAME_FORMAT does not contain valid format specification!"
+    echo ""
+    _ERROR=1
+fi
+
+# storage directory for results  ------
+
+PRECYCLE_STORAGE="storage"
+PRECYCLE_STORAGE="$INF_JOB_MACHINE:$INF_JOB_PATH/$PRECYCLE_STORAGE"
+
+# check if PRECYCLE_STORAGE is correctly defined
+
+echo "test file" > _test_storage
+scp -q _test_storage $PRECYCLE_STORAGE &> /dev/null
+
+if [ $? -ne 0 ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PRECYCLE_STORAGE is not valid storage directory!"
+    echo ""
+    _ERROR=1
+fi
+
+# compress traj  ------
+
+if [ -n "$PRECYCLE_COMPRESS_TRAJ" ] && \
+   [ "$PRECYCLE_COMPRESS_TRAJ" != "gzip" ] && \
+   [ "$PRECYCLE_COMPRESS_TRAJ" != "bzip2" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PRECYCLE_COMPRESS_TRAJ has to be either empty string, gzip or bzip2!"
+    echo ""
+    _ERROR=1
+fi
+
+# number of internal cycles ---
+
+if [ -z "$PRECYCLE_ICYCLES" ]; then
+   export PRECYCLE_ICYCLES="1"
+fi
+
+expr $PRECYCLE_ICYCLES + 1 &>/dev/null
+
+if [ $? -ne 0 ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: Variable PRECYCLE_ICYCLES is not a number!"
+    echo ""
+    _ERROR=1
+fi
+
+# transform control ------
+
+if [ -z "$PRECYCLE_TRANSFORM_CONTROL" ]; then
+    PRECYCLE_TRANSFORM_CONTROL="NO"
+fi
+
+if [ "$PRECYCLE_TRANSFORM_CONTROL" != "YES" ] && \
+   [ "$PRECYCLE_TRANSFORM_CONTROL" != "NO" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PRECYCLE_TRANSFORM_CONTROL has to be either YES or NO!"
+    echo ""
+    _ERROR=1
+fi
+
+# check MD_CORE -----------------------
+
+if [ "$MD_CORE" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: None MD program is set! (MD_CORE is not set or is not exported!)"
+    echo ""
+    _ERROR=1
+fi
+
+# exit if some error was detected -----
+
+if [ "$_ERROR" == "1" ]; then
+    exit 1
+fi
+
+# check collision of input coordinates with cooridnates produced during run
+
+for((STAGE=$PRECYCLE_START; STAGE <= $PRECYCLE_STOP; STAGE++)); do
+    STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $STAGE`"
+    if [ "$PRECYCLE_CRD" == "$STAGE_STRING.crd" ]; then
+        if [ "$_ERROR" == "0" ]; then echo ""; fi
+        echo " ERROR: Input coordinates collide with coordinates for stage $STAGE!"
+        echo ""
+    fi
+done
+
+if [ "$_ERROR" == "1" ]; then
+    exit 1
+fi
+
+# ----------------------------------------------------------------------------------
+
+if [ -e EXIT ]; then
+    echo ""
+    echo " ERROR: EXIT file detected before first production stage!"
+    echo "        Remove this file from working directory."
+    echo ""
+    exit 1
+fi
+
+echo "    Success."
+echo ""
+echo " 2. Precycle setup"
+echo "--------------------------------------------------"
+echo "    Topology                  : $PRECYCLE_TOP"
+echo "    Input coordinates         : $PRECYCLE_CRD"
+echo "    ----------------------------------------------"
+echo "    First production          : $PRECYCLE_START"
+echo "    Last production           : $PRECYCLE_STOP"
+echo "    Name format               : $PRECYCLE_NAME_FORMAT"
+echo "    Result storage            : $PRECYCLE_STORAGE"
+if [ -z "$PRECYCLE_COMPRESS_TRAJ" ]; then
+echo "    Trajectory compressor     : none"
+else
+echo "    Trajectory compressor     : $PRECYCLE_COMPRESS_TRAJ"
+fi
+echo "    Number of internal cycles : $PRECYCLE_ICYCLES"
+echo "    ----------------------------------------------"
+echo "    Control file              : $PRECYCLE_CONTROL"
+echo "    Transform control file    : $PRECYCLE_TRANSFORM_CONTROL"
+echo "    ----------------------------------------------"
+echo "    MD module                 : $MD_MODULE"
+echo "    MD executable             : $MD_CORE"
+echo ""
+echo ""
+
+# -----------------------------------------------------------------------------
+# find previous recycle information
+
+echo " 3. Precycle initialization ..."
+
+PRECYCLE_STORAGE_HOST=`echo $PRECYCLE_STORAGE | cut -d":" -f1`
+PRECYCLE_STORAGE_DIR=`echo $PRECYCLE_STORAGE | cut -d":" -f2`
+
+echo "       Scannig for last coordinate ..."
+echo "          Storage host : $PRECYCLE_STORAGE_HOST"
+echo "          Storage dir  : $PRECYCLE_STORAGE_DIR"
+
+ssh $PRECYCLE_STORAGE_HOST " \
+ISTAGE=\$(($PRECYCLE_STOP+1)); \
+while [ \$ISTAGE -gt $PRECYCLE_START ]; \
+    do \
+        STAGE_STRING=\"\`printf $PRECYCLE_NAME_FORMAT \$ISTAGE\`\"; \
+        if test -f \"$PRECYCLE_STORAGE_DIR/\$STAGE_STRING.crd\" ; \
+            then \
+        echo \"          Last stage   : \$STAGE_STRING - found.\" 1>&2; \
+            break; \
+        fi; \
+        echo \"          Last stage   : \$STAGE_STRING - not found ...\" 1>&2; \
+        ISTAGE=\$((\$ISTAGE-1)); \
+    done; \
+echo 1>&2; \
+echo \$ISTAGE; \
+" > /tmp/$USER.$$.prodid
+
+STAGE=`cat /tmp/$USER.$$.prodid`
+rm -f /tmp/$USER.$$.prodid
+
+STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $STAGE`"
+
+if [ "$STAGE" == "$(($PRECYCLE_STOP+1))" ]; then
+    echo ""
+    echo " ERROR: Coordinate file for '$STAGE_STRING' stage is out of specified range!"
+    echo "        All productions were probably processed!"
+    echo ""
+    rm -f $ERRFILE &> /dev/null
+    exit 1
+fi
+
+if [ "$STAGE" == "$PRECYCLE_START" ]; then
+    echo "       No coordinates - first run: `printf "$PRECYCLE_NAME_FORMAT" $STAGE`"
+else
+    echo "       Last accessible input coordinates are for stage: $STAGE_STRING"
+fi
+
+# detecting runtime environment -----------------------------------------------
+
+if [ -z "$INF_JOB_NAME" ] || [ -z "$INF_JOB_PATH" ]; then
+    echo ""
+    echo " ERROR: precycle jobs have to be run in the Infinity environment!"
+    echo "        Use psubmit or pstart command to start your job!"
+    echo ""
+    exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# generate string and temporary file for error messages
+
+ERRFILE=/tmp/$USER.$$
+
+
+# try to clean previous stage --------------------------------------------------
+# we need some magic from infinity
+
+echo " 4. Trying to clean previous run ..."
+
+PREV_STAGE=$(($STAGE-$PRECYCLE_ICYCLES))
+PREV_STAGE_S1="`printf "$PRECYCLE_NAME_FORMAT" $PREV_STAGE`"
+PREV_STAGE_S2="#`printf %03d $PREV_STAGE`"
+
+
+ssh $INF_JOB_MACHINE \
+    "cd $INF_JOB_PATH; \
+     if [ -f \"$INF_JOB_NAME$PREV_STAGE_S2.info\" ]; \
+        then \
+            scp \"$INF_JOB_NAME$PREV_STAGE_S2.info\" \"$PRECYCLE_STORAGE/$PREV_STAGE_S1.info\"; \
+            if [ $? -eq 0 ]; then rm -f \"$INF_JOB_NAME$PREV_STAGE_S2.info\"; fi; \
+        fi; \
+     if [ -f \"$INF_JOB_NAME$PREV_STAGE_S2.stdout\" ]; \
+        then \
+            scp \"$INF_JOB_NAME$PREV_STAGE_S2.stdout\" \"$PRECYCLE_STORAGE/$PREV_STAGE_S1.stdout\"; \
+            if [ $? -eq 0 ]; then rm -f \"$INF_JOB_NAME$PREV_STAGE_S2.stdout\"; fi; \
+        fi; \
+     if [ -f \"$INF_JOB_NAME$PREV_STAGE_S2.infout\" ]; \
+        then \
+            scp \"$INF_JOB_NAME$PREV_STAGE_S2.infout\" \"$PRECYCLE_STORAGE/$PREV_STAGE_S1.infout\"; \
+            if [ $? -eq 0 ]; then rm -f \"$INF_JOB_NAME$PREV_STAGE_S2.infout\"; fi; \
+        fi; \
+     if [ -f \"$INF_JOB_NAME$PREV_STAGE_S2.inferr\" ]; \
+        then \echo " 1b. Trying to clean previous run ..."
+
+            scp \"$INF_JOB_NAME$PREV_STAGE_S2.inferr\" \"$PRECYCLE_STORAGE/$PREV_STAGE_S1.inferr\"; \
+            if [ $? -eq 0 ]; then rm -f \"$INF_JOB_NAME$PREV_STAGE_S2.inferr\"; fi; \
+        fi; \
+     if [ -f \"$INF_JOB_NAME$PREV_STAGE_S2.infkey\" ]; \
+        then \echo " 1b. Trying to clean previous run ..."
+
+            scp \"$INF_JOB_NAME$PREV_STAGE_S2.infkey\" \"$PRECYCLE_STORAGE/$PREV_STAGE_S1.infkey\"; \
+            if [ $? -eq 0 ]; then rm -f \"$INF_JOB_NAME$PREV_STAGE_S2.infkey\"; fi; \
+        fi; \
+     if [ -f \"$INF_JOB_NAME$PREV_STAGE_S2.nodes\" ]; \
+        then \
+            scp \"$INF_JOB_NAME$PREV_STAGE_S2.nodes\" \"$PRECYCLE_STORAGE/$PREV_STAGE_S1.nodes\"; \
+            if [ $? -eq 0 ]; then rm -f \"$INF_JOB_NAME$PREV_STAGE_S2.nodes\"; fi; \
+        fi; \
+     if [ -f \"$INF_JOB_NAME$PREV_STAGE_S2.gpus\" ]; \
+        then \
+            scp \"$INF_JOB_NAME$PREV_STAGE_S2.gpus\" \"$PRECYCLE_STORAGE/$PREV_STAGE_S1.gpus\"; \
+            if [ $? -eq 0 ]; then rm -f \"$INF_JOB_NAME$PREV_STAGE_S2.gpus\"; fi; \
+        fi; \
+     if [ -f \"$INF_JOB_NAME$PREV_STAGE_S2.infex\" ]; \
+        then \
+            rm -f \"$INF_JOB_NAME$PREV_STAGE_S2.infex\"; \
+        fi; \
+    " &> $ERRFILE
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo " ERROR: Unable to clean previous run!"
+    echo "        Error message follows:"
+    echo ""
+    cat $ERRFILE
+    echo ""
+    rm -f $ERRFILE &> /dev/null
+    exit 1
+fi
+
+# delete local copy on scratch
+if [ -f "$INF_JOB_NAME$PREV_STAGE_S2.info" ]; then
+    rm -f "$INF_JOB_NAME$PREV_STAGE_S2.info"
+fi
+
+if [ -f "$INF_JOB_NAME$PREV_STAGE_S2.stdout" ]; then
+    rm -f "$INF_JOB_NAME$PREV_STAGE_S2.stdout"
+fi
+
+if [ -f "$INF_JOB_NAME$PREV_STAGE_S2.infout" ]; then
+    rm -f "$INF_JOB_NAME$PREV_STAGE_S2.infout"
+fi
+
+if [ -f "$INF_JOB_NAME$PREV_STAGE_S2.inferr" ]; then
+    rm -f "$INF_JOB_NAME$PREV_STAGE_S2.inferr"
+fi
+
+if [ -f "$INF_JOB_NAME$PREV_STAGE_S2.infex" ]; then
+    rm -f "$INF_JOB_NAME$PREV_STAGE_S2.infex"
+fi
+
+if [ -f "$INF_JOB_NAME$PREV_STAGE_S2.infkey" ]; then
+    rm -f "$INF_JOB_NAME$PREV_STAGE_S2.infkey"
+fi
+
+if [ -f "$INF_JOB_NAME$PREV_STAGE_S2.nodes" ]; then
+    rm -f "$INF_JOB_NAME$PREV_STAGE_S2.nodes"
+fi
+
+if [ -f "$INF_JOB_NAME$PREV_STAGE_S2.gpus" ]; then
+    rm -f "$INF_JOB_NAME$PREV_STAGE_S2.gpus"
+fi
+
+echo "    Success."
+echo ""
+
+echo " 5. Internal loop"
+echo "#-------------------------------------------------------------------------------"
+echo ""
+
+# -----------------------------------------------------------------------------
+
+for((I=0;I < $PRECYCLE_ICYCLES;I++)); do
+
+# -----------------------------------------------------------------------------
+# prepare input coordinates
+
+echo " IL - 1. Preparing input coordinates..."
+
+if [ "$STAGE" == "$PRECYCLE_START" ]; then
+    # prepare input coordinates
+    cp $PRECYCLE_CRD $STAGE_STRING.crd &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy input coordinate file '$PRECYCLE_CRD' as '$STAGE_STRING.crd'!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+
+    # make copy of input coordinates in PRECYCLE_STORAGE
+    scp -q $STAGE_STRING.crd $PRECYCLE_STORAGE &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy '$STAGE_STRING.crd' to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+
+else
+    scp -q $PRECYCLE_STORAGE/$STAGE_STRING.crd . &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy '$STAGE_STRING.crd' from"
+        echo "        precycle storage to current directory!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+
+    PREV_STAGE=$(($STAGE-1))
+    PREV_STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $PREV_STAGE`"
+
+    # try to recover PMFLib restarts - optional
+    scp -q $PRECYCLE_STORAGE/$PREV_STAGE_STRING.abfrst _abf.rst &> $ERRFILE
+    scp -q $PRECYCLE_STORAGE/$PREV_STAGE_STRING.conrst _con.rst &> $ERRFILE
+    scp -q $PRECYCLE_STORAGE/$PREV_STAGE_STRING.mtdrst _mtd.rst &> $ERRFILE
+fi
+
+echo "    Success."
+echo ""
+
+# perform MD run --------------------------------------------------------------
+
+NEXT_STAGE=$(($STAGE+1))
+NEXT_STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $NEXT_STAGE`"
+
+
+echo " IL - 2. Performing molecular dynamics run for '$STAGE_STRING' stage ..."
+
+REMOVE_CONTROL="NO"
+
+if [ "$PRECYCLE_TRANSFORM_CONTROL" == "YES" ]; then
+    sed -e "s/RANDOM/$RANDOM/g" < $PRECYCLE_CONTROL > $STAGE_STRING.in
+    MD_CONTROL="$STAGE_STRING.in"
+    REMOVE_CONTROL="YES"
+else
+    MD_CONTROL="$PRECYCLE_CONTROL"
+fi
+
+$MD_CORE -O -i $MD_CONTROL -o $STAGE_STRING.out -p $PRECYCLE_TOP -c $STAGE_STRING.crd \
+         -x $STAGE_STRING.traj -r $NEXT_STAGE_STRING.crd &> $ERRFILE
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo " ERROR: Molecular dynamics run failed!"
+    echo "        Error message follows:"
+    echo ""
+    cat $ERRFILE
+    echo ""
+    rm -f $ERRFILE &> /dev/null
+    exit 1
+fi
+
+# compressing trajectory
+
+if [ -n "$PRECYCLE_COMPRESS_TRAJ" ]; then
+    $PRECYCLE_COMPRESS_TRAJ $STAGE_STRING.traj
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Molecular dynamics run failed!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+echo "    Success."
+echo ""
+
+# move results to precycle storage --------------------------------------------
+
+echo " IL - 3. Moving results to precycle storage ..."
+
+scp -q $STAGE_STRING.traj* $STAGE_STRING.out \
+       $NEXT_STAGE_STRING.crd $PRECYCLE_STORAGE &> $ERRFILE
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo " ERROR: Unable to copy result to precycle storage!"
+    echo "        Error message follows:"
+    echo ""
+    cat $ERRFILE
+    echo ""
+    rm -f $ERRFILE &> /dev/null
+    exit 1
+fi
+
+if [ "$REMOVE_CONTROL" == YES ]; then
+    scp -q $STAGE_STRING.in $PRECYCLE_STORAGE &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+    rm -f $STAGE_STRING.in
+fi
+
+if [ -f "_abf.out" ]; then
+    scp -q _abf.out $PRECYCLE_STORAGE/$STAGE_STRING.abfout &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+if [ -f "_abf.rst" ]; then
+    scp -q _abf.rst $PRECYCLE_STORAGE/$STAGE_STRING.abfrst &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+if [ -f "_rst.out" ]; then
+    scp -q _rst.out $PRECYCLE_STORAGE/$STAGE_STRING.rstout &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+if [ -f "_rst.rst" ]; then
+    scp -q _rst.rst $PRECYCLE_STORAGE/$STAGE_STRING.rstrst &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+if [ -f "_mon.out" ]; then
+    scp -q _mon.out $PRECYCLE_STORAGE/$STAGE_STRING.monout &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+if [ -f "_con.out" ]; then
+    scp -q _con.out $PRECYCLE_STORAGE/$STAGE_STRING.conout &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+if [ -f "_con.rst" ]; then
+    scp -q _con.rst $PRECYCLE_STORAGE/$STAGE_STRING.conrst &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+if [ -f "_mtd.out" ]; then
+    scp -q _mtd.out $PRECYCLE_STORAGE/$STAGE_STRING.mtdout &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+if [ -f "_mtd.rst" ]; then
+    scp -q _mtd.rst $PRECYCLE_STORAGE/$STAGE_STRING.mtdrst &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+if [ -f "_mtd.cvs" ]; then
+    scp -q _mtd.cvs $PRECYCLE_STORAGE/$STAGE_STRING.mtdcvs &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+if [ -f "_mtd.hills" ]; then
+    scp -q _mtd.hills $PRECYCLE_STORAGE/$STAGE_STRING.mtdhills &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+if [ -f "_stm.out" ]; then
+    scp -q _stm.out $PRECYCLE_STORAGE/$STAGE_STRING.stmout &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Unable to copy result to precycle storage!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+fi
+
+rm -f $STAGE_STRING.out $STAGE_STRING.crd $STAGE_STRING.traj* $NEXT_STAGE_STRING.crd \
+      _abf.out _abf.rst _rst.out _rst.rst _mon.out _con.out _con.rst \
+      _mtd.out _mtd.rst _mtd.cvs _mtd.hills _stm.out &> /dev/null
+
+echo "    Success."
+echo ""
+
+rm -f mdinfo
+
+#---------------------------------------------------------------------------
+# check for end
+
+echo " IL - 4. Testing if this is last run ..."
+
+if [ "$NEXT_STAGE" -gt "$PRECYCLE_STOP" ]; then
+    echo "    Last run was performed - precycle is terminated."
+    echo ""
+    echo "================================================================================"
+    echo "|                                                                              |"
+    echo "|                               END OF PRECYCLE                                |"
+    echo "|                                                                              |"
+    echo "================================================================================"
+    echo ""
+    rm -f $ERRFILE &> /dev/null
+    exit 0
+fi
+
+if [ -f "EXIT" ]; then
+    echo "    EXIT file was found - precycle is softly interrupted."
+    echo ""
+    echo "================================================================================"
+    echo "|                                                                              |"
+    echo "|                               END OF PRECYCLE                                |"
+    echo "|                                                                              |"
+    echo "================================================================================"
+    echo ""
+    rm -f $ERRFILE &> /dev/null
+    exit 0
+fi
+
+echo "    precycle will continue with next run."
+echo ""
+
+echo "#-------------------------------------------------------------------------------"
+
+# update for next internal loop
+STAGE=$NEXT_STAGE
+STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $STAGE`"
+
+done     # end of PRECYCLE_ICYCLES cycle
+
+echo ""
+
+# -----------------------------------------------------------------------------
+# resubmit job to the queue
+
+echo " 6. Submiting next run to queue system via Infinity system ..."
+
+if [ "$INF_ARG_DESTINATION" == "" ] || [ "$INF_ARG_JOB" == "" ]; then
+    echo ""
+    echo " ERROR: INF_ARG_DESTINATION or INF_ARG_JOB variable is not set!"
+    echo "        Job was not submited to PBS!"
+    echo ""
+    exit 1
+fi
+
+# set next job parameters
+export INF_EXTERNAL_NAME_AFIX=\"#`printf %03d $NEXT_STAGE`\"
+export INF_EXTERNAL_START_AFTER=$PBS_JOBID
+
+presubmit
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo " ERROR: Unable to re-submit job!"
+    echo "        Look above for errors."
+    echo ""
+    rm -f $ERRFILE &> /dev/null
+    exit 1
+fi
+
+# remove error file
+rm -f $ERRFILE &> /dev/null
+
+echo ""
+echo "================================================================================"
+echo "|                                                                              |"
+echo "|                               END OF PRECYCLE                                |"
+echo "|                                                                              |"
+echo "================================================================================"
+echo ""
+

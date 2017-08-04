@@ -1,0 +1,26 @@
+#
+# relax01
+#
+# geometry optimization
+# restrained all except H, force constant 50
+
+&cntrl
+ imin=1,
+ maxcyc=1000,
+ ncyc=1000,
+
+ ntpr=10,
+
+ ntf=1,
+ ntb=0,
+ cut=16,
+ igb=1,
+
+ ntr=1,
+ restraint_wt=50,
+ restraintmask="!@H=",
+
+ ntc=1,
+
+&end
+

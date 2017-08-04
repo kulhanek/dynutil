@@ -1,0 +1,69 @@
+#!/usr/bin/env infinity-env
+# DO NOT CHANGE LINE BELOW ----------------------------------------------------
+# INFINITY JobType=precycleCPMD
+# INFINITY ExcludedFiles=storage
+# DO NOT CHANGE LINE ABOVE ----------------------------------------------------
+# =============================================================================
+# dynutil v4.0
+# (c) 2013       Jakub Stepan, xstepan3@chemi.muni.cz
+# =============================================================================
+# -----------------------------------------------------------------------------
+# precycleCPMD-starter - input script for restartable production dynamics
+#                        using CPMD program
+# -----------------------------------------------------------------------------
+
+# WARNING: this type of job supports an automatic job restart of crashed job!!!
+#          in the case of failure, please just resubmit a job into queue system
+#          without any modification of this script
+
+# control file for MD it has to be compatible with used MD program ------------
+# file name without path, this file has to be presented in the job directory
+export PRECYCLE_CONTROL=""
+
+# pseudopotentials path -------------------------------------------------------
+# full path to the directory with pseudopotentials, 
+# if files are present in the job directory leave ./
+export PRECYCLE_PSEUDOPOTENTIALS="./"
+
+# index of first production stage ---------------------------------------------
+export PRECYCLE_START="1"
+
+# index of final production stage ---------------------------------------------
+export PRECYCLE_STOP=""
+
+# storage for data ------------------------------------------------------------
+# currently only local storage is supported
+# export PRECYCLE_STORAGE="storage"
+
+# compress trajectory file by compressor --------------------------------------
+# supported compressors:
+#   empty string - no compression
+#   gzip
+#   bzip2
+export PRECYCLE_COMPRESS_TRAJ=""
+
+# number of internal cycles ---------------------------------------------------
+export PRECYCLE_ICYCLES="1"
+
+# file name format ------------------------------------------------------------
+# it determine the base name of produced files (syntax according to printf)
+export PRECYCLE_NAME_FORMAT="prod%03d"
+
+# program to perform MD -------------------------------------------------------
+export MD_MODULE="cpmd-qmmm"
+export MD_CORE="cpmd.x"
+
+#------------------------------------------------------------------------------
+# THIS IS EXECUTION PART, PLEASE DO NOT CHANGE IT !! ==========================
+#------------------------------------------------------------------------------
+
+# do not execute if some parameter is specified
+# this is used by INFINITY autodetection plugin
+
+if [ $# -eq 0 ];  then
+      module add dynutil-new:${DYNUTIL_ALL_VERSION}
+      module add $MD_MODULE
+      precycleCPMD
+fi
+
+

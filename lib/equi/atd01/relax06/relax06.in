@@ -1,0 +1,22 @@
+#
+# relax06
+#
+# geometry optimization of all atoms
+# restrains off
+
+&cntrl
+ imin=1,
+ maxcyc=2000,
+ ncyc=200,
+
+ ntpr=10,
+
+ ntf=1,
+ ntb=0,
+ cut=16,
+ igb=1,
+
+ ntc=1,
+
+&end
+

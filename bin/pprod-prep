@@ -1,0 +1,79 @@
+#!/bin/bash
+# =============================================================================
+# dynutil v2.0
+# (c) 2009       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2005, Petr Kulhanek, kulhanek@chemi.muni.cz
+# =============================================================================
+# -----------------------------------------------------------------------------
+# pprod-prep - preparation stage for pprod
+# -----------------------------------------------------------------------------
+
+# determine full path to the script -------------------------------------------
+RELPATH=`dirname $0`
+if [ -z "$RELPATH" ]; then
+    FULPATH=`type $0`
+else
+    FULPATH=`cd $PWD; cd $RELPATH; pwd`
+fi
+
+# determine DYNUTIL_DIR
+DYNUTIL_DIR=`dirname $FULPATH`
+
+if [ "$DYNUTIL_DIR" == "" ]; then
+    echo ""
+    echo " ERROR: DYNUTIL_DIR variable is not set!"
+    echo ""
+    exit 1
+fi
+
+if [ $# -ne 1 ]; then
+    echo ""
+    echo " ERROR: Name of production protocol is not provided!"
+    echo ""
+    echo "        Usage: pprod-prep <protocol_name>"
+    echo ""
+    echo "        Available protocols: `cd $DYNUTIL_DIR/lib/prod; ls -d * | tr '\n' ' '`"
+    echo ""
+    exit 1
+fi
+
+# check old setup of pprodJob --------------------------------------------------
+
+ANSWER=YES
+
+if [ -e pprodJob ]; then
+    echo ""
+    echo " WARNING: pprodJob file already exists in working directory!"
+    echo "          Do you want to overwrite it? (YES/NO)"
+    read ANSWER
+    if [ "$ANSWER" == "NO" ]; then
+        echo "Original pprodJob file is untouched!"
+        exit
+    fi
+fi
+
+if ! [ -d $DYNUTIL_DIR/lib/prod/$1 ]; then
+    echo ""
+    echo " ERROR: Protocol '$1' does not exist!"
+    echo ""
+    exit 1
+fi
+
+cp -f $DYNUTIL_DIR/lib/prod/$1/pprodJob pprodJob
+
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+cp -f $DYNUTIL_DIR/lib/prod/$1/prod.in prod.in
+
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+chmod +x pprodJob
+
+echo ""
+echo "All neccessary files for pprod were copied to working directory."
+echo ""
+

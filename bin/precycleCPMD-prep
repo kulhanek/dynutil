@@ -1,0 +1,59 @@
+#!/bin/bash
+# =============================================================================
+# dynutil v4.0
+# (c) 2013       Jakub Stepan, xstepan3@chemi.muni.cz
+# =============================================================================
+# -----------------------------------------------------------------------------
+# precycleCPMD-prep - preparation stage for precycle
+# -----------------------------------------------------------------------------
+
+# determine full path to the script -------------------------------------------
+RELPATH=`dirname $0`
+if [ -z "$RELPATH" ]; then
+    FULPATH=`type $0`
+else
+    FULPATH=`cd $PWD; cd $RELPATH; pwd`
+fi
+
+# determine DYNUTIL_DIR
+DYNUTIL_DIR=`dirname $FULPATH`
+
+if [ "$DYNUTIL_DIR" == "" ]; then
+    echo ""
+    echo " ERROR: DYNUTIL_DIR variable not found!"
+    echo ""
+    exit 1
+fi
+
+# check old setup of precycle --------------------------------------------------
+
+ANSWER=YES
+
+if [ -e precycleJobCPMD ]; then
+    echo ""
+    echo " WARNING: precycleJobCPMD file already exists in working directory!"
+    echo "          Do you want to overwrite it? (YES/NO)"
+    read ANSWER
+    if [ "$ANSWER" != "YES" ]; then
+        echo "Original precycleJobCPMD file is untouched!"
+        exit
+    fi
+fi
+
+cp -f $DYNUTIL_DIR/lib/starters/precycleCPMD-starter.in precycleJobCPMD
+
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+# make local storage directory
+mkdir -p storage
+
+# make script executable
+chmod +x precycleJobCPMD
+
+echo ""
+echo "All neccessary files for precycle were copied to working directory."
+echo ""
+
+

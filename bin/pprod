@@ -1,0 +1,340 @@
+#!/bin/bash
+# =============================================================================
+# dynutil v2.0
+# (c) 2009       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2005,2006 Petr Kulhanek, kulhanek@chemi.muni.cz
+# =============================================================================
+# -----------------------------------------------------------------------------
+# pprod - command for production dynamics
+# -----------------------------------------------------------------------------
+
+# input variables -------------------------------------------------------------
+
+# MD_CORE                    - program for calculation
+# MD_MODULE                  - module containing MD_CORE
+
+# PPROD_TOP                  - topology
+# PPROD_CRD                  - coordinates
+
+# PPROD_CONTROL              - control file
+# PPROD_TRANSFORM_CONTROL    - transform control file (YES/NO)
+#                                 (set the RANDOM key to a random value)
+
+# PPROD_START                - start offset
+# PPROD_STOP                 - stop offset
+# PPROD_NAME_FORMAT          - name of root in printf format (printf format)
+# PPROD_COMPRESS_TRAJ        - compressor name or empty string
+
+# -----------------------------------------------------------------------------
+# print header
+
+echo ""
+echo "================================================================================"
+echo "|                                                                              |"
+echo "|                     PPROD - performs production dynamics                     |"
+echo "|       (c) 2004,2005,2006,2009 Petr Kulhanek, kulhanek@chemi.muni.cz          |"
+echo "|                                                                              |"
+echo "================================================================================"
+echo ""
+
+# -----------------------------------------------------------------------------
+# check syntax
+
+echo " 1. Checking syntax ..."
+
+_ERROR=0
+
+# input topology ----------------------
+
+if [ "$PPROD_TOP" == "" ]; then
+    echo ""
+    echo " ERROR: PPROD_TOP variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+else
+    if ! [ -f $PPROD_TOP ]; then
+        echo ""
+        echo " ERROR: Topology file \"$PPROD_TOP\" does not exist!"
+        echo ""
+        _ERROR=1
+    fi
+fi
+
+# input restart file ------------------
+
+if [ "$PPROD_CRD" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PPROD_CRD variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+else
+    if ! [ -f $PPROD_CRD ]; then
+        if [ "$_ERROR" == "0" ]; then echo ""; fi
+        echo " ERROR: Initial restart file \"$PPROD_CRD\" does not exist!"
+        echo ""
+        _ERROR=1
+    fi
+fi
+
+# control file ------------------------
+
+if [ "$PPROD_CONTROL" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PPROD_CONTROL variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+else
+    if ! [ -f $PPROD_CONTROL ]; then
+        if [ "$_ERROR" == "0" ]; then echo ""; fi
+        echo " ERROR: Control file \"$PPROD_CONTROL\" does not exist!"
+        echo ""
+        _ERROR=1
+    fi
+fi
+
+# number of first run -----------------
+
+if [ "$PPROD_START" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PPROD_START variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+fi
+
+expr $PPROD_START + 1 &>/dev/null
+
+if [ $? -ne 0 ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: Variable PPROD_START is not a number!"
+    echo ""
+    _ERROR=1
+fi
+
+# number of last run ------------------
+
+if [ "$PPROD_STOP" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PPROD_STOP variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+fi
+
+expr $PPROD_STOP + 1 &>/dev/null
+
+if [ $? -ne 0 ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: Variable PPROD_STOP is not a number!"
+    echo ""
+    _ERROR=1
+fi
+
+# name format -------------------------
+
+if [ "$PPROD_NAME_FORMAT" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PPROD_NAME_FORMAT variable is not set or is not exported!"
+    echo ""
+    _ERROR=1
+fi
+
+printf "$PPROD_NAME_FORMAT" 1 &> /dev/null
+
+if [ $? -ne 0 ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: Variable PPROD_NAME_FORMAT does not contain valid format specification!"
+    echo ""
+    _ERROR=1
+fi
+
+# compress traj  ------
+
+if [ -n "$PPROD_COMPRESS_TRAJ" ] && \
+   [ "$PPROD_COMPRESS_TRAJ" != "gzip" ] && \
+   [ "$PPROD_COMPRESS_TRAJ" != "bzip2" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PPROD_COMPRESS_TRAJ has to be either empty string, gzip or bzip2!"
+    echo ""
+    _ERROR=1
+fi
+
+# transform control ------
+
+if [ -z "$PPROD_TRANSFORM_CONTROL" ]; then
+    PPROD_TRANSFORM_CONTROL="NO"
+fi
+
+if [ "$PPROD_TRANSFORM_CONTROL" != "YES" ] && \
+   [ "$PPROD_TRANSFORM_CONTROL" != "NO" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: PPROD_TRANSFORM_CONTROL has to be either YES or NO!"
+    echo ""
+    _ERROR=1
+fi
+
+# check MD_CORE -----------------------
+
+if [ "$MD_CORE" == "" ]; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " ERROR: None MD program is set! (MD_CORE is not set or is not exported!)"
+    echo ""
+    _ERROR=1
+fi
+
+# check collision of input coordinates with cooridnates produced during run
+
+for((STAGE=$PPROD_START; STAGE <= $PPROD_STOP; STAGE++)); do
+    STAGE_STRING="`printf "$PPROD_NAME_FORMAT" $STAGE`"
+    if [ "$PPROD_CRD" == "$STAGE_STRING.crd" ]; then
+        if [ "$_ERROR" == "0" ]; then echo ""; fi
+        echo " ERROR: Input coordinates collide with coordinates for stage $STAGE!"
+        echo ""
+    fi
+done
+
+# exit if some error was detected -----
+
+if [ "$_ERROR" == "1" ]; then
+    exit 1
+fi
+
+# ----------------------------------------------------------------------------------
+
+if [ -e EXIT ]; then
+    echo ""
+    echo " ERROR: EXIT file detected before first production stage!"
+    echo "        Remove this file from working directory."
+    echo ""
+    exit 1
+fi
+
+# ----------------------------------------------------------------------------------
+
+echo "    Success."
+echo ""
+echo " 2. pprod setup"
+echo "--------------------------------------------------"
+echo "    Topology               : $PPROD_TOP"
+echo "    Input coordinates      : $PPROD_CRD"
+echo "    ----------------------------------------------"
+echo "    First production       : $PPROD_START"
+echo "    Last production        : $PPROD_STOP"
+echo "    Name format            : $PPROD_NAME_FORMAT"
+echo "    Trajectory compressor  : $PPROD_COMPRESS_TRAJ"
+echo "    ----------------------------------------------"
+echo "    Control file           : $PPROD_CONTROL"
+echo "    Transform control file : $PPROD_TRANSFORM_CONTROL"
+echo "    ----------------------------------------------"
+echo "    MD module              : $MD_MODULE"
+echo "    MD executable          : $MD_CORE"
+echo ""
+echo ""
+
+# ----------------------------------------------------------------------------------
+
+ERRFILE=/tmp/$USER.$$
+
+# main part for production
+
+STAGE=$PPROD_START
+
+while [ $STAGE -le $PPROD_STOP ]
+  do
+    # generate string
+    STAGE_STRING="`printf "$PPROD_NAME_FORMAT" $STAGE`"
+
+    # prepare input coordinates
+    if [ "$OLD_STAGE_STRING" == "" ]; then
+        cp $PPROD_CRD $STAGE_STRING.crd &> $ERRFILE
+        if [ $? -ne 0 ]; then
+                echo ""
+                echo " ERROR: Unable to copy input coordinates as the initial coordinate of MD run!"
+                echo "        Error message follows:"
+                echo ""
+                cat $ERRFILE
+                echo ""
+                rm -f $ERRFILE &> /dev/null
+                exit 1
+            fi
+    else
+        mv $OLD_STAGE_STRING.rst $STAGE_STRING.crd &> $ERRFILE
+        if [ $? -ne 0 ]; then
+                echo ""
+                echo " ERROR: Unable to move restart file of previous MD run as input coordinates of the new one!"
+                echo "        Error message follows:"
+                echo ""
+                cat $ERRFILE
+                echo ""
+                rm -f $ERRFILE &> /dev/null
+                exit 1
+            fi
+    fi
+
+    echo " Performing molecular dynamics run for '$STAGE_STRING' stage ..."
+
+    REMOVE_CONTROL="NO"
+
+    if [ "$PPROD_TRANSFORM_CONTROL" == "YES" ]; then
+        sed -e "s/RANDOM/$RANDOM/g" < $PPROD_CONTROL > $STAGE_STRING.in
+        PPROD_CONTROL="$STAGE_STRING.in"
+        REMOVE_CONTROL="YES"
+    fi
+
+    $MD_CORE -O -i $PPROD_CONTROL -o $STAGE_STRING.out -p $PPROD_TOP -c $STAGE_STRING.crd \
+            -x $STAGE_STRING.traj -r $STAGE_STRING.rst &> $ERRFILE
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " ERROR: Molecular dynamics run failed!"
+        echo "        Error message follows:"
+        echo ""
+        cat $ERRFILE
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 1
+    fi
+
+    # compressing trajectory
+    if [ -n "$PPROD_COMPRESS_TRAJ" ]; then
+        $PPROD_COMPRESS_TRAJ $STAGE_STRING.traj
+
+        if [ $? -ne 0 ]; then
+            echo ""
+            echo " ERROR: Molecular dynamics run failed!"
+            echo "        Error message follows:"
+            echo ""
+            cat $ERRFILE
+            echo ""
+            rm -f $ERRFILE &> /dev/null
+            exit 1
+        fi
+    fi
+
+    STAGE=$(($STAGE+1))
+
+    echo ""
+
+    if [ -f "EXIT" ]; then
+        echo "      #### Production dynamics was softly interrupted by EXIT file. ####        "
+        echo ""
+        echo "================================================================================"
+        echo "|                                                                              |"
+        echo "|                                 END OF PPROD                                 |"
+        echo "|                                                                              |"
+        echo "================================================================================"
+        echo ""
+        rm -f $ERRFILE &> /dev/null
+        exit 0
+    fi
+    OLD_STAGE_STRING=$STAGE_STRING
+ done
+
+echo "================================================================================"
+echo "|                                                                              |"
+echo "|                                 END OF PPROD                                 |"
+echo "|                                                                              |"
+echo "================================================================================"
+echo ""
+
+rm -f $ERRFILE &> /dev/null
+
+

@@ -1,0 +1,33 @@
+#
+# final heat of system to 10 K 
+#
+
+&cntrl
+ imin=0,
+
+ nstlim=60000,
+ dt=0.001,
+
+ ntpr=50,
+ ntwx=1000,
+ ntwr=1000,
+ ioutfm=1,
+
+ ntf=2,
+ ntb=0,
+ cut=16,
+ igb=1,
+
+ tempi=1.0,
+ temp0=10.0,
+ ntt=3,
+ gamma_ln=5.0,
+ nscm=0,
+
+ ntc=2,
+ nmropt = 1,
+&end
+&wt type="TEMP0", istep1=1, istep2=20000, value1=1.0, value2=10.0, &end
+&wt type="TEMP0", istep1=20001, istep2=60000, value1=10.0, value2=10.0, &end
+&wt type="END", &end
+

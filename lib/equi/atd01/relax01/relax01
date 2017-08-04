@@ -1,0 +1,5 @@
+#!/bin/bash
+
+sander -O -i relax01.in -p ../$TOPOLOGY -c ../$COORDS -ref ../$COORDS -o relax01.out -r relax01.rst
+
+	

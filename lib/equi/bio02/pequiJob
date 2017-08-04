@@ -1,0 +1,72 @@
+#!/usr/bin/env infinity-env
+# DO NOT CHANGE LINE BELOW ----------------------------------------------------
+# INFINITY JobType=pequi
+# DO NOT CHANGE LINE ABOVE ----------------------------------------------------
+# =============================================================================
+
+# equilibration procedure: bio02
+# biomolecular system in explicit solvent
+
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!! *** WARNING *** !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# It is highly recomended to use modified topology where all solute molecules
+# are merged together byt topjoinmol utility from CATs package.
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!! *** WARNING *** !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+# input topology --------------------------------------------------------------
+# file name without path, this file has to be presented in working directory
+export PEQUI_TOP=""
+
+# input coordinates -----------------------------------------------------------
+# file name without path, this file has to be presented in working directory
+export PEQUI_CRD=""
+
+# description of simulated system ---------------------------------------------
+# number of solute residues (DO NOT include counter ions)
+export NUM_OF_SOLUTE_RESIDUES=""
+
+# program to perform MD -------------------------------------------------------
+export MD_MODULE="amber"
+export MD_CORE="pmemd"
+
+#------------------------------------------------------------------------------
+# THIS IS EXECUTION PART, PLEASE DO NOT CHANGE IT !! ==========================
+#------------------------------------------------------------------------------
+
+# do not execute if some parameter is specified
+# this is used by INFINITY autodetection plugin
+
+if [ $# -ne 0 ]; then
+   exit 0
+fi
+
+# activate MD module
+module add $MD_MODULE
+
+echo "EQUI: bio02 - biomolecular system in explicit solvent"
+
+for STAGE in `ls -d relax* |sort`; do
+    echo "*** Stage: $STAGE"
+    if test -f $STAGE/$STAGE.rst7
+    then
+      echo "Stage already done, skipping."
+      continue;
+    fi
+    if test -f $STAGE/EXIT
+    then
+      echo "EXIT file found, stopping equlibration at stage $STAGE."
+      break;
+    fi
+    cd $STAGE
+    ./$STAGE
+    if [ $? -ne 0 ]; then
+          echo ""
+          echo " ERROR: Stage $STAGE was not completed!"
+          echo ""
+          cd ..
+          exit 1
+    fi
+    cd ..
+done
+
+echo ""
+
