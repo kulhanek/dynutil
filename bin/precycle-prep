@@ -1,6 +1,7 @@
 #!/bin/bash
 # =============================================================================
-# dynutil v2.0
+# dynutil v5.0
+# (c) 2017       Petr Kulhanek, kulhanek@chemi.muni.cz
 # (c) 2009       Petr Kulhanek, kulhanek@chemi.muni.cz
 # (c) 2005, Petr Kulhanek, kulhanek@chemi.muni.cz
 # =============================================================================
@@ -32,7 +33,7 @@ if [ $# -ne 1 ]; then
     echo ""
     echo "        Usage: precycle-prep <protocol_name>"
     echo ""
-    echo "        Available protocols: `cd $DYNUTIL_DIR/lib/recycle; ls -d * | tr '\n' ' '`"
+    echo "        Available protocols: `cd $DYNUTIL_DIR/lib/prod; ls -d * | tr '\n' ' '`"
     echo ""
     exit 1
 fi
@@ -43,29 +44,29 @@ ANSWER=YES
 
 if [ -e precycleJob ]; then
     echo ""
-    echo " WARNING: precycleJob file already exists in working directory!"
+    echo " WARNING: The precycleJob file already exists in the working directory!"
     echo "          Do you want to overwrite it? (YES/NO)"
     read ANSWER
     if [ "$ANSWER" == "NO" ]; then
-        echo "Original precycleJob file is untouched!"
+        echo "The original precycleJob file was kept!"
         exit
     fi
 fi
 
-if ! [ -d $DYNUTIL_DIR/lib/recycle/$1 ]; then
+if ! [ -d $DYNUTIL_DIR/lib/prod/$1 ]; then
     echo ""
-    echo " ERROR: Protocol '$1' does not exist!"
+    echo " ERROR: The production protocol '$1' does not exist!"
     echo ""
     exit 1
 fi
 
-cp -f $DYNUTIL_DIR/lib/recycle/$1/precycleJob precycleJob
+cp -f $DYNUTIL_DIR/lib/starters/precycleJob precycleJob
 
 if [ $? -ne 0 ]; then
     exit 1
 fi
 
-cp -f $DYNUTIL_DIR/lib/recycle/$1/prod.in prod.in
+cp -f $DYNUTIL_DIR/lib/prod/$1/prod.in prod.in
 
 if [ $? -ne 0 ]; then
     exit 1
@@ -78,6 +79,6 @@ mkdir -p storage
 chmod +x precycleJob
 
 echo ""
-echo "All neccessary files for precycle were copied to working directory."
+echo "All neccessary files for precycle were copied to the working directory."
 echo ""
 

@@ -4,7 +4,8 @@
 # INFINITY ExcludedFiles=storage
 # DO NOT CHANGE LINE ABOVE ----------------------------------------------------
 # =============================================================================
-# dynutil v4.0
+# dynutil v${DYNUTIL_ALL_VERSION}
+# (c) 2017       Petr Kulhanek, kulhanek@chemi.muni.cz
 # (c) 2013       Jakub Stepan, xstepan3@chemi.muni.cz
 # =============================================================================
 # -----------------------------------------------------------------------------
@@ -61,7 +62,7 @@ export MD_CORE="cpmd.x"
 # this is used by INFINITY autodetection plugin
 
 if [ $# -eq 0 ];  then
-      module add dynutil-new:${DYNUTIL_ALL_VERSION}
+      module add dynutil:${DYNUTIL_ALL_VERSION}
       module add $MD_MODULE
       precycleCPMD
 fi
