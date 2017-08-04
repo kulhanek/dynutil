@@ -26,7 +26,7 @@ if [ $? -ne 0 ]; then exit 1; fi
 
 # names ------------------------------
 NAME="dynutil"
-ARCH=`noarch`
+ARCH="noarch"
 MODE="single" 
 echo "Build: $NAME:$VERS:$ARCH:$MODE"
 echo ""
