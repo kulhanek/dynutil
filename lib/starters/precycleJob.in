@@ -60,7 +60,7 @@ export MD_CORE="pmemd"
 # this is used by INFINITY autodetection plugin
 
 if [ $# -eq 0 ];  then
-      module add dynutil-new:${DYNUTIL_ALL_VERSION}
+      module add dynutil:${DYNUTIL_ALL_VERSION}
       module add $MD_MODULE
       precycle
 fi
