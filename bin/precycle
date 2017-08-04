@@ -1,4 +1,4 @@
-#!/usr/bin/infinity-env
+#!/usr/bin/env infinity-env
 # =============================================================================
 # dynutil v5.0
 # (c) 2017       Petr Kulhanek, kulhanek@chemi.muni.cz
