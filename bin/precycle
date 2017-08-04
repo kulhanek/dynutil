@@ -224,7 +224,6 @@ echo "    ----------------------------------------------"
 echo "    First production          : $PRECYCLE_START"
 echo "    Last production           : $PRECYCLE_STOP"
 echo "    Name format               : $PRECYCLE_NAME_FORMAT"
-echo "    Result storage            : $PRECYCLE_STORAGE"
 echo "    Number of internal cycles : $PRECYCLE_ICYCLES"
 echo "    Storage directory         : $INF_ARCHIVE_DIR"
 echo "    Current stage             : $INF_RECYCLE_CURRENT"
@@ -262,7 +261,7 @@ fi
 echo ""
 echo " 4. Clean the previous run ..."
 
-parchive "$PRECYCLE_START" "$STAGE" "$PRECYCLE_FORMAT"
+parchive runtime "$PRECYCLE_START" "$STAGE" "$PRECYCLE_NAME_FORMAT"
 if [ $? -ne 0 ]; then exit 1; fi
 
 echo ""
