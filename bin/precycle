@@ -334,68 +334,74 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# remove the previous start file
+rm -f "$STAGE_STRING.rst7"
+
 # move results to precycle storage --------------------------------------------
 
 echo ""
 echo " IL - 3. Moving results to precycle storage ..."
 
-parchive move "$STAGE_STRING.traj" "$STAGE_STRING.out" "$NEXT_STAGE_STRING.rst7"
-if [ $? -ne 0 ]; then exit 1; fi
+FILES_TO_ARCHIVE="$STAGE_STRING.traj $STAGE_STRING.out $NEXT_STAGE_STRING.rst7"
+
+if [ -f mdinfo ]; then
+    mv mdinfo "$NEXT_STAGE_STRING.mdinfo"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $NEXT_STAGE_STRING.mdinfo"
+fi
 
 # PMFLib files ---------------------------
 
-PMFLIB_FILES=""
 if [ -f "_abf.out" ]; then
     mv "_abf.out" "$STAGE_STRING.abfout"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.abfout"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfout"
 fi
 if [ -f "_abf.rst" ]; then
     mv "_abf.rst" "$STAGE_STRING.abfrst"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.abfrst"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfrst"
 fi
 if [ -f "_rst.out" ]; then
     mv "_rst.out" "$STAGE_STRING.rstout"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.rstout"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.rstout"
 fi
 if [ -f "_rst.rst" ]; then
     mv "_rst.rst" "$STAGE_STRING.rstrst"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.rstrst"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.rstrst"
 fi
 if [ -f "_mon.out" ]; then
     mv "_mon.out" "$STAGE_STRING.monout"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.monout"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.monout"
 fi
 if [ -f "_cst.out" ]; then
     mv "_cst.out" "$STAGE_STRING.cstout"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.cstout"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.cstout"
 fi
 if [ -f "_cst.rst" ]; then
     mv "_cst.rst" "$STAGE_STRING.cstrst"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.cstrst"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.cstrst"
 fi
 if [ -f "_mtd.out" ]; then
     mv "_mtd.out" "$STAGE_STRING.mtdout"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.mtdout"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdout"
 fi
 if [ -f "_mtd.rst" ]; then
     mv "_mtd.rst" "$STAGE_STRING.mtdrst"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.mtdrst"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdrst"
 fi
 if [ -f "_mtd.cvs" ]; then
     mv "_mtd.cvs" "$STAGE_STRING.mtdcvs"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.mtdcvs"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdcvs"
 fi
 if [ -f "_mtd.hills" ]; then
     mv "_mtd.hills" "$STAGE_STRING.mtdhills"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.mtdhills"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdhills"
 fi
 if [ -f "_stm.out" ]; then
     mv "_stm.out" "$STAGE_STRING.stmout"
-    PMFLIB_FILES="$PMFLIB_FILES $STAGE_STRING.stmout"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.stmout"
 fi
 
-if [ -n "$PMFLIB_FILES" ]; then
-    parchive move $PMFLIB_FILES
+if [ -n "$FILES_TO_ARCHIVE" ]; then
+    parchive move $FILES_TO_ARCHIVE
     if [ $? -ne 0 ]; then exit 1; fi
 fi
 
