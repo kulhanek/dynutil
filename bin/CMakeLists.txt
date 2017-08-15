@@ -10,8 +10,6 @@ INSTALL(FILES
             pprod-prep
             precycle
             precycle-prep
-            precycleCPMD
-            precycleCPMD-prep               
         DESTINATION
             bin
         PERMISSIONS

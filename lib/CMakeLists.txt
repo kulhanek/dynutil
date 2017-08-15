@@ -4,7 +4,6 @@
 
 CONFIGURE_FILE(starters/pprodJob.in starters/pprodJob)
 CONFIGURE_FILE(starters/precycleJob.in starters/precycleJob)
-CONFIGURE_FILE(starters/precycleCPMD-starter.in starters/precycleCPMD-starter)
 
 INSTALL(DIRECTORY
             awk equi prod starters
