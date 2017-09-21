@@ -412,7 +412,7 @@ echo ""
 echo " IL - 4. Testing if this is the last run ..."
 
 if [ "$NEXT_STAGE" -gt "$PRECYCLE_STOP" ]; then
-    echo "    The last run was performed - precycle is terminated."
+    echo "      YES, the last run was performed - precycle is terminated."
     echo ""
     echo "================================================================================"
     echo "|                                                                              |"
@@ -424,7 +424,7 @@ if [ "$NEXT_STAGE" -gt "$PRECYCLE_STOP" ]; then
 fi
 
 if [ -f "EXIT" ] || [ -f "STOP" ]; then
-    echo "    The EXIT/STOP file was found - precycle is softly interrupted."
+    echo "      The EXIT/STOP file was found - precycle is softly interrupted."
     echo ""
     echo "================================================================================"
     echo "|                                                                              |"
@@ -435,7 +435,7 @@ if [ -f "EXIT" ] || [ -f "STOP" ]; then
     exit 0
 fi
 
-echo "    precycle will continue with the next run."
+    echo "      NO, precycle will continue with the next run."
 echo ""
 
 echo "#-------------------------------------------------------------------------------"
@@ -450,7 +450,7 @@ done     # end of PRECYCLE_ICYCLES cycle
 # resubmit job to the queue
 
 echo ""
-echo " 6. Submiting next run to queue system via Infinity system ..."
+echo " 6. Submiting the next run to the batch system via the Infinity system ..."
 
 if [ "$INF_ARG_DESTINATION" == "" ] || [ "$INF_ARG_JOB" == "" ]; then
     echo ""
