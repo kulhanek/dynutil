@@ -19,8 +19,8 @@
 #          In the case of failure, just resubmit a job into a queue system
 #          without any modification of this script!
 #
-# INFO:    Computed data are stored into the job input storage archive, which
-#          the 'storage' subdirectory.
+# INFO:    The computed data are stored into the job input storage archive, 
+#          which is the 'storage' subdirectory.
 
 # input topology --------------------------------------------------------------
 # file name without path, this file has to be present in working directory
