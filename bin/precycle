@@ -273,6 +273,29 @@ echo "#-------------------------------------------------------------------------
 for((I=0;I < $PRECYCLE_ICYCLES;I++)); do
 
 # -----------------------------------------------------------------------------
+# update info file
+
+if [ "$I" -gt 0 ]; then
+    echo ""
+    echo " IL - 0. Updating the stage index in the info file ..."
+
+    # update info file
+    $ABS_ROOT/sbin/abs-update-infofile incstage
+    if [ $? -ne 0 ]; then
+        echo "" >&2
+        echo " >>> ERROR: Unable to update the job stage index in the job info file!" >&2
+        echo "" >&2
+        # do not exit
+    else
+        case $INF_DATAIN in
+            copy-master|copy-shared)
+                inf-retry-cmd inf-copy-to-inputdir "$INF_WORK_DIR/${INF_WHOLE_NAME}.info" "${INF_WHOLE_NAME}.info"
+            ;;
+        esac
+    fi
+fi
+
+# -----------------------------------------------------------------------------
 # prepare input coordinates
 
 echo ""
@@ -345,8 +368,8 @@ echo " IL - 3. Moving results to precycle storage ..."
 FILES_TO_ARCHIVE="$STAGE_STRING.traj $STAGE_STRING.out $NEXT_STAGE_STRING.rst7"
 
 if [ -f mdinfo ]; then
-    mv mdinfo "$NEXT_STAGE_STRING.mdinfo"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $NEXT_STAGE_STRING.mdinfo"
+    mv mdinfo "$STAGE_STRING.mdinfo"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mdinfo"
 fi
 
 # PMFLib files ---------------------------
@@ -358,6 +381,10 @@ fi
 if [ -f "_abf.rst" ]; then
     mv "_abf.rst" "$STAGE_STRING.abfrst"
     FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfrst"
+fi
+if [ -f "_abf.ifc" ]; then
+    mv "_abf.ifc" "$STAGE_STRING.abfifc"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfifc"
 fi
 if [ -f "_rst.out" ]; then
     mv "_rst.out" "$STAGE_STRING.rstout"
