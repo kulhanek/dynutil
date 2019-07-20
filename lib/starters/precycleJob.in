@@ -5,6 +5,7 @@
 # DO NOT CHANGE LINE ABOVE ----------------------------------------------------
 # =============================================================================
 # dynutil v${DYNUTIL_ALL_VERSION}
+# (c) 2019       Petr Kulhanek, kulhanek@chemi.muni.cz
 # (c) 2017       Petr Kulhanek, kulhanek@chemi.muni.cz
 # (c) 2013       Petr Kulhanek, kulhanek@chemi.muni.cz
 # (c) 2012       Petr Kulhanek, kulhanek@chemi.muni.cz
@@ -43,6 +44,11 @@ export PRECYCLE_STOP=""
 
 # number of internal cycles ---------------------------------------------------
 export PRECYCLE_ICYCLES="1"
+
+# autorecovery mode -----------------------------------------------------------
+# 0 - no autorecovery enabled, abort the job if MD execution fails
+# 1 - autorecovery enabled, try to rerun the last MD run if it fails but only once
+export PRECYCLE_AUTORECOVERY="0"
 
 # file name format ------------------------------------------------------------
 # it determine the base name of produced files (syntax according to printf)

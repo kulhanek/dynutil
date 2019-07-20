@@ -1,6 +1,7 @@
 #!/usr/bin/env infinity-env
 # =============================================================================
 # dynutil v5.0
+# (c) 2019       Petr Kulhanek, kulhanek@chemi.muni.cz
 # (c) 2017       Petr Kulhanek, kulhanek@chemi.muni.cz
 # (c) 2009       Petr Kulhanek, kulhanek@chemi.muni.cz
 # (c) 2005, 2006 Petr Kulhanek, kulhanek@chemi.muni.cz
@@ -26,6 +27,10 @@
 # from previous run
 # INF_RECYCLE_CURRENT           - current stage, set by psubmit
 
+# optional
+# PRECYCLE_ICYCLES		- number of internal cycles
+# PRECYCLE_AUTORECOVERY		- 0/1 - skip/try to recover the last failed run
+
 # -----------------------------------------------------------------------------
 # print header
 
@@ -48,13 +53,13 @@ _ERROR=0
 
 if [ "$PRECYCLE_TOP" == "" ]; then
     echo ""
-    echo " ERROR: PRECYCLE_TOP variable is not set or is not exported!"
+    echo " >>> ERROR: PRECYCLE_TOP variable is not set or is not exported!"
     echo ""
     _ERROR=1
 else
     if ! [ -f $PRECYCLE_TOP ]; then
         echo ""
-        echo " ERROR: Topology file \"$PRECYCLE_TOP\" does not exist!"
+        echo " >>> ERROR: Topology file \"$PRECYCLE_TOP\" does not exist!"
         echo ""
         _ERROR=1
     fi
@@ -64,13 +69,13 @@ fi
 
 if [ "$PRECYCLE_CRD" == "" ]; then
     if [ "$_ERROR" == "0" ]; then echo ""; fi
-    echo " ERROR: PRECYCLE_CRD variable is not set or is not exported!"
+    echo " >>> ERROR: PRECYCLE_CRD variable is not set or is not exported!"
     echo ""
     _ERROR=1
 else
     if ! [ -f $PRECYCLE_CRD ]; then
         if [ "$_ERROR" == "0" ]; then echo ""; fi
-        echo " ERROR: Initial restart file \"$PRECYCLE_CRD\" does not exist!"
+        echo " >>> ERROR: Initial restart file \"$PRECYCLE_CRD\" does not exist!"
         echo ""
         _ERROR=1
     fi
@@ -80,13 +85,13 @@ fi
 
 if [ "$PRECYCLE_CONTROL" == "" ]; then
     if [ "$_ERROR" == "0" ]; then echo ""; fi
-    echo " ERROR: PRECYCLE_CONTROL variable is not set or is not exported!"
+    echo " >>> ERROR: PRECYCLE_CONTROL variable is not set or is not exported!"
     echo ""
     _ERROR=1
 else
     if ! [ -f $PRECYCLE_CONTROL ]; then
         if [ "$_ERROR" == "0" ]; then echo ""; fi
-        echo " ERROR: Control file \"$PRECYCLE_CONTROL\" does not exist!"
+        echo " >>> ERROR: Control file \"$PRECYCLE_CONTROL\" does not exist!"
         echo ""
         _ERROR=1
     fi
@@ -96,7 +101,7 @@ fi
 
 if [ "$PRECYCLE_START" == "" ]; then
     if [ "$_ERROR" == "0" ]; then echo ""; fi
-    echo " ERROR: PRECYCLE_START variable is not set or is not exported!"
+    echo " >>> ERROR: PRECYCLE_START variable is not set or is not exported!"
     echo ""
     _ERROR=1
 fi
@@ -105,7 +110,7 @@ expr $PRECYCLE_START + 1 &>/dev/null
 
 if [ $? -ne 0 ]; then
     if [ "$_ERROR" == "0" ]; then echo ""; fi
-    echo " ERROR: Variable PRECYCLE_START is not a number!"
+    echo " >>> ERROR: Variable PRECYCLE_START is not a number!"
     echo ""
     _ERROR=1
 fi
@@ -114,7 +119,7 @@ fi
 
 if [ "$PRECYCLE_STOP" == "" ]; then
     if [ "$_ERROR" == "0" ]; then echo ""; fi
-    echo " ERROR: PRECYCLE_STOP variable is not set or is not exported!"
+    echo " >>> ERROR: PRECYCLE_STOP variable is not set or is not exported!"
     echo ""
     _ERROR=1
 fi
@@ -123,7 +128,7 @@ expr $PRECYCLE_STOP + 1 &>/dev/null
 
 if [ $? -ne 0 ]; then
     if [ "$_ERROR" == "0" ]; then echo ""; fi
-    echo " ERROR: Variable PRECYCLE_STOP is not a number!"
+    echo " >>> ERROR: Variable PRECYCLE_STOP is not a number!"
     echo ""
     _ERROR=1
 fi
@@ -132,7 +137,7 @@ fi
 
 if [ "$PRECYCLE_NAME_FORMAT" == "" ]; then
     if [ "$_ERROR" == "0" ]; then echo ""; fi
-    echo " ERROR: PRECYCLE_NAME_FORMAT variable is not set or is not exported!"
+    echo " >>> ERROR: PRECYCLE_NAME_FORMAT variable is not set or is not exported!"
     echo ""
     _ERROR=1
 fi
@@ -141,7 +146,7 @@ printf "$PRECYCLE_NAME_FORMAT" 1 &> /dev/null
 
 if [ $? -ne 0 ]; then
     if [ "$_ERROR" == "0" ]; then echo ""; fi
-    echo " ERROR: Variable PRECYCLE_NAME_FORMAT does not contain valid format specification!"
+    echo " >>> ERROR: Variable PRECYCLE_NAME_FORMAT does not contain valid format specification!"
     echo ""
     _ERROR=1
 fi
@@ -149,13 +154,13 @@ fi
 # storage directory for results  ------
 
 if [ -z "$INF_ARCHIVE_DIR" ]; then
-    echo " ERROR: Variable INF_ARCHIVE_DIR is not set!"
+    echo " >>> ERROR: Variable INF_ARCHIVE_DIR is not set!"
     echo ""
     _ERROR=1
 fi
 
 if [ -z "$INF_RECYCLE_CURRENT" ]; then
-    echo " ERROR: Variable INF_RECYCLE_CURRENT is not set!"
+    echo " >>> ERROR: Variable INF_RECYCLE_CURRENT is not set!"
     echo ""
     _ERROR=1
 fi
@@ -170,7 +175,20 @@ expr $PRECYCLE_ICYCLES + 1 &>/dev/null
 
 if [ $? -ne 0 ]; then
     if [ "$_ERROR" == "0" ]; then echo ""; fi
-    echo " ERROR: Variable PRECYCLE_ICYCLES is not a number!"
+    echo " >>> ERROR: Variable PRECYCLE_ICYCLES is not a number!"
+    echo ""
+    _ERROR=1
+fi
+
+# autorecovery ---
+
+if [ -z "PRECYCLE_AUTORECOVERY" ]; then
+   export PRECYCLE_AUTORECOVERY="0"
+fi
+
+if [ "$PRECYCLE_AUTORECOVERY" -ne 0 ] && [ "$PRECYCLE_AUTORECOVERY" -ne 1 ] ; then
+    if [ "$_ERROR" == "0" ]; then echo ""; fi
+    echo " >>> ERROR: Variable PRECYCLE_AUTORECOVERY has to be either 0 or 1!"
     echo ""
     _ERROR=1
 fi
@@ -179,7 +197,7 @@ fi
 
 if [ "$MD_CORE" == "" ]; then
     if [ "$_ERROR" == "0" ]; then echo ""; fi
-    echo " ERROR: No MD program is set! (MD_CORE is not set or is not exported!)"
+    echo " >>> ERROR: No MD program is set! (MD_CORE is not set or is not exported!)"
     echo ""
     _ERROR=1
 fi
@@ -196,7 +214,7 @@ for((STAGE=$PRECYCLE_START; STAGE <= $PRECYCLE_STOP; STAGE++)); do
     STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $STAGE`"
     if [ "$PRECYCLE_CRD" == "$STAGE_STRING.rst7" ]; then
         if [ "$_ERROR" == "0" ]; then echo ""; fi
-        echo " ERROR: Input coordinates collide with coordinates for stage $STAGE!"
+        echo " >>> ERROR: Input coordinates collide with coordinates for stage $STAGE!"
         echo ""
     fi
 done
@@ -209,8 +227,8 @@ fi
 
 if [ -e EXIT ] || [ -e STOP ]; then
     echo ""
-    echo " ERROR: The EXIT/STOP file detected before the first production stage!"
-    echo "        Remove this file from the working directory."
+    echo " >>> ERROR: The EXIT/STOP file detected before the first production stage!"
+    echo "            Remove this file from the working directory."
     echo ""
     exit 1
 fi
@@ -236,24 +254,24 @@ echo "    MD executable             : $MD_CORE"
 # -----------------------------------------------------------------------------
 # find previous recycle information
 
-echo ""
-echo " 3. Precycle initialization ..."
+    echo ""
+    echo " 3. Precycle initialization ..."
 
 STAGE="$INF_RECYCLE_CURRENT"
 STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $STAGE`"
 
 if [ "$STAGE" == "$(($PRECYCLE_STOP+1))" ]; then
     echo ""
-    echo " ERROR: The coordinate file for '$STAGE_STRING' stage is out of specified range!"
-    echo "        All productions were probably processed!"
+    echo " >>> ERROR: The coordinate file for '$STAGE_STRING' stage is out of specified range!"
+    echo "            All productions were probably processed!"
     echo ""
     exit 1
 fi
 
 if [ "$STAGE" == "$PRECYCLE_START" ]; then
-    echo "       No coordinates - first run: `printf "$PRECYCLE_NAME_FORMAT" $STAGE`"
+    echo "    No coordinates - first run: `printf "$PRECYCLE_NAME_FORMAT" $STAGE`"
 else
-    echo "       The last accessible input coordinates are for stage: $STAGE_STRING"
+    echo "    The last accessible input coordinates are for stage: $STAGE_STRING"
 fi
 
 # try to clean previous stage --------------------------------------------------
@@ -262,7 +280,8 @@ echo ""
 echo " 4. Clean the previous run ..."
 
 parchive runtime "$PRECYCLE_START" "$((STAGE - PRECYCLE_ICYCLES + 1))" "$PRECYCLE_NAME_FORMAT"
-if [ $? -ne 0 ]; then exit 1; fi
+
+if [ $? -ne 0 ]; then exit 1; fi;
 
 echo ""
 echo " 5. Internal loop"
@@ -307,7 +326,7 @@ if [ "$STAGE" == "$PRECYCLE_START" ]; then
     cp "$PRECYCLE_CRD" "$STAGE_STRING.rst7"
     if [ $? -ne 0 ]; then
         echo ""
-        echo " ERROR: Unable to copy the input coordinate file '$PRECYCLE_CRD' as '$STAGE_STRING.rst7'!"
+        echo " >>> ERROR: Unable to copy the input coordinate file '$PRECYCLE_CRD' as '$STAGE_STRING.rst7'!"
         echo ""
         exit 1
     fi
@@ -344,17 +363,36 @@ fi
 NEXT_STAGE=$(($STAGE+1))
 NEXT_STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $NEXT_STAGE`"
 
-echo ""
-echo " IL - 2. Performing molecular dynamics run for the '$STAGE_STRING' stage ..."
+    echo ""
+    echo " IL - 2. Performing molecular dynamics run for the '$STAGE_STRING' stage ..."
 
 $MD_CORE -O -i "$PRECYCLE_CONTROL" -o $STAGE_STRING.out -p $PRECYCLE_TOP -c $STAGE_STRING.rst7 \
          -x $STAGE_STRING.traj -r $NEXT_STAGE_STRING.rst7
 
 if [ $? -ne 0 ]; then
     echo ""
-    echo " ERROR: Molecular dynamics run failed!"
+    echo " >>> ERROR: Molecular dynamics run failed!"
     echo ""
-    exit 1
+    if [ "$PRECYCLE_AUTORECOVERY" -ne 1 ]; then
+        echo "            Autorecovery not enabled, exiting ... " 
+        exit 1
+    fi
+    # try job autorecovery by starting it again
+    echo " >>> Waiting for 5 minut ..."
+    sleep 300
+    
+    echo ""
+    echo " IL - 2. Performing molecular dynamics run for the '$STAGE_STRING' stage (autorecovery stage) ..."
+
+    $MD_CORE -O -i "$PRECYCLE_CONTROL" -o $STAGE_STRING.out -p $PRECYCLE_TOP -c $STAGE_STRING.rst7 \
+                -x $STAGE_STRING.traj -r $NEXT_STAGE_STRING.rst7 
+                
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo " >>> ERROR: Molecular dynamics run failed again, no recovery possible, exiting ...!"
+        echo "" 
+        exit 1
+    fi
 fi
 
 # remove the previous start file
@@ -481,8 +519,8 @@ echo " 6. Submiting the next run to the batch system via the Infinity system ...
 
 if [ "$INF_ARG_DESTINATION" == "" ] || [ "$INF_ARG_JOB" == "" ]; then
     echo ""
-    echo " ERROR: INF_ARG_DESTINATION or INF_ARG_JOB variable is not set!"
-    echo "        The job was not re-submited to the batch system!"
+    echo " >>> ERROR: INF_ARG_DESTINATION or INF_ARG_JOB variable is not set!"
+    echo "            The job was not re-submited to the batch system!"
     echo ""
     exit 1
 fi
@@ -495,7 +533,7 @@ presubmit
 
 if [ $? -ne 0 ]; then
     echo ""
-    echo " ERROR: Unable to re-submit the job!"
+    echo " >>> ERROR: Unable to re-submit the job!"
     echo ""
     exit 1
 fi
