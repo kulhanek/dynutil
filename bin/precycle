@@ -28,8 +28,8 @@
 # INF_RECYCLE_CURRENT           - current stage, set by psubmit
 
 # optional
-# PRECYCLE_ICYCLES		- number of internal cycles
-# PRECYCLE_AUTORECOVERY		- 0/1 - skip/try to recover the last failed run
+# PRECYCLE_ICYCLES		        - number of internal cycles
+# PRECYCLE_AUTORECOVERY	        - 0/1 - skip/try to recover the last failed run
 
 # -----------------------------------------------------------------------------
 # print header
@@ -38,7 +38,7 @@ echo ""
 echo "================================================================================"
 echo "|                                                                              |"
 echo "|            PRECYCLE - performs restartable production dynamics               |"
-echo "|     (c) 2004,2005,2006,2009,2017 Petr Kulhanek, kulhanek@chemi.muni.cz       |"
+echo "|  (c) 2004,2005,2006,2009,2017,2019 Petr Kulhanek, kulhanek@chemi.muni.cz     |"
 echo "|                                                                              |"
 echo "================================================================================"
 
@@ -168,7 +168,10 @@ fi
 # number of internal cycles ---
 
 if [ -z "$PRECYCLE_ICYCLES" ]; then
-   export PRECYCLE_ICYCLES="1"
+    export PRECYCLE_ICYCLES="1"
+fi
+if [ "$PRECYCLE_ICYCLES" == "auto" ]; then
+    export PRECYCLE_ICYCLES="100"
 fi
 
 expr $PRECYCLE_ICYCLES + 1 &>/dev/null
@@ -312,6 +315,8 @@ if [ "$I" -gt 0 ]; then
         echo "" >&2
         # do not exit
     else
+        # load ABS library
+        source $ABS_ROOT/share/scripts/abs-execution-script-LL
         case $INF_DATAIN in
             copy-master|copy-shared)
                 inf-retry-cmd inf-copy-to-inputdir "$INF_WORK_DIR/${INF_WHOLE_NAME}.info" "${INF_WHOLE_NAME}.info"
@@ -352,7 +357,7 @@ else
     parchive tryget "$PREV_STAGE_STRING.abfrst" "$PREV_STAGE_STRING.cstrst" "$PREV_STAGE_STRING.mtdrst"
     if [ -f "$PREV_STAGE_STRING.abfrst" ]; then
         mv "$PREV_STAGE_STRING.abfrst" _abf.rst
-        echo ">> INFO: PMFLib _abs.rst recovered!"
+        echo ">> INFO: PMFLib _abf.rst recovered!"
     fi
     if [ -f "$PREV_STAGE_STRING.cstrst" ]; then
         mv "$PREV_STAGE_STRING.cstrst" _cst.rst
@@ -372,10 +377,12 @@ NEXT_STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $NEXT_STAGE`"
     echo ""
     echo " IL - 2. Performing molecular dynamics run for the '$STAGE_STRING' stage ..."
 
-_ET=`date +%s`      # end mark
-((_TT = _ET - _ST)) # increment total time
+_ET=`date +%s`              # end mark
+((_TT = _TT + _ET - _ST))   # increment total time
 
 _ST=`date +%s`  # start mark - MD run
+
+_REC=0
     
 $MD_CORE -O -i "$PRECYCLE_CONTROL" -o $STAGE_STRING.out -p $PRECYCLE_TOP -c $STAGE_STRING.rst7 \
          -x $STAGE_STRING.traj -r $NEXT_STAGE_STRING.rst7
@@ -383,19 +390,22 @@ $MD_CORE -O -i "$PRECYCLE_CONTROL" -o $STAGE_STRING.out -p $PRECYCLE_TOP -c $STA
 
 if [ $? -ne 0 ]; then
     echo ""
-    echo " >>> ERROR: Molecular dynamics run failed!"
-    echo ""
+        echo " >>> ERROR: Molecular dynamics run failed!"
     if [ "$PRECYCLE_AUTORECOVERY" -ne 1 ]; then
         echo "            Autorecovery not enabled, exiting ... " 
         exit 1
     fi
+        echo "            Resubmitting the job after MD crashed (autorecovery is on)!"
+    echo ""
     
     parchive tryget "icycle.stat"
     
     if [ -f icycle.stat ]; then
         _IS="`head -1 icycle.stat`"
         if [ "$_IS" == "FAILED" ]; then
-            echo "            The 'storage/icycle.stat' indicates FAILED status - this stage already failed, exiting ... " 
+            echo " >>> The 'storage/icycle.stat' file indicates FAILED status - this stage already failed, exiting ... " 
+            echo ""
+            rm -f icycle.stat
             exit 1
         fi
     fi
@@ -403,60 +413,41 @@ if [ $? -ne 0 ]; then
     echo "FAILED" > icycle.stat
     parchive move icycle.stat
     
-    # try job autorecovery by starting it again
-    echo " >>> Waiting for 5 minut ..."
-    sleep 300
+    # save failed outputs
+    FILES_TO_ARCHIVE=""
     
-    # do we have enough time for the autorecovery run?
-    if [ "$_PT" -gt 0 ]; then
-        # only if peak time is already available
-        echo ""
-        echo "# job status"
-        echo "# ------------------------------------------------------------------------------"
-
-        SFILE="sfile.$$"
-        pqstat -j $INF_JOB_ID | tee $SFILE
-        echo "# ------------------------------------------------------------------------------"
-        echo ""
-        _UWT=`grep -i resources_used.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
-        _TWT=`grep -i Resource_List.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
-        ((_RWT = _TWT - _UWT - 600))
-        if [ "$_RWT" -le 0 ]; then
-            _RWT=0
-        fi
-        echo "# Remaining walltime: $_RWT (10 min substracted as backup)"
-        echo "# MD exec peak time : $_PT"
-        echo ""
-        
-        if [ "$_RWT" -le "$_PT" ]; then
-            echo " There is not enough walltime for the next run - cleaning this stage and resubmiting the job ..."
-            echo "" 
-            rm -f $STAGE_STRING.out $STAGE_STRING.traj $NEXT_STAGE_STRING.rst7 _abf.* _rst.* _cst.* _mtd.* _stm.*
-            break
-        fi
+    if [ -f $STAGE_STRING.out ]; then
+        mv $STAGE_STRING.out $STAGE_STRING.out.failed
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.out.failed"
     fi
     
-    echo ""
-    echo " IL - 2. Performing molecular dynamics run for the '$STAGE_STRING' stage (autorecovery stage) ..."
-
-    _ST=`date +%s`  # start mark, scratch crashed MD run
+    if [ -f $STAGE_STRING.traj ]; then
+        mv $STAGE_STRING.traj $STAGE_STRING.traj.failed
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.traj.failed"
+    fi  
+    if [ -f _rst.out ]; then
+        mv _rst.out $STAGE_STRING.rstout.failed
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.rstout.failed"
+    fi      
     
-    $MD_CORE -O -i "$PRECYCLE_CONTROL" -o $STAGE_STRING.out -p $PRECYCLE_TOP -c $STAGE_STRING.rst7 \
-                -x $STAGE_STRING.traj -r $NEXT_STAGE_STRING.rst7 
-                
-    if [ $? -ne 0 ]; then
-        echo ""
-        echo " >>> ERROR: Molecular dynamics run failed again, no recovery possible, exiting ...!"
-        echo "" 
-        exit 1
-    fi
+    if [ -n "$FILES_TO_ARCHIVE" ]; then
+        parchive move $FILES_TO_ARCHIVE
+        if [ $? -ne 0 ]; then exit 1; fi
+    fi    
+    
+    # clean the run
+    rm -f $STAGE_STRING.rst7 $STAGE_STRING.out $STAGE_STRING.traj $NEXT_STAGE_STRING.rst7 _abf.* _rst.* _cst.* _mtd.* _stm.*
+    
+    # and resubmit the job
+    _REC=1 # set autorecovery flag
+    break;
 fi
 
 echo "OK" > icycle.stat
 parchive move icycle.stat
 
-_ET=`date +%s`      # end mark
-((_TT = _ET - _ST)) # increment total time
+_ET=`date +%s`              # end mark
+((_TT = _TT + _ET - _ST))   # increment total time
 
 # remove the previous start file
 rm -f "$STAGE_STRING.rst7"
@@ -541,8 +532,8 @@ if [ -n "$FILES_TO_ARCHIVE" ]; then
     if [ $? -ne 0 ]; then exit 1; fi
 fi
 
-_ET=`date +%s`      # end mark
-((_TT = _ET - _ST)) # increment total time
+_ET=`date +%s`              # end mark
+((_TT = _TT + _ET - _ST))   # increment total time
 
 # update peak time for one icycle
 if [ "$_PT" -le "$_TT" ]; then
@@ -553,10 +544,10 @@ fi
 # check for end
 
 echo ""
-echo " IL - 4. Testing if this is the last stage ..."
+    echo " IL - 4. Testing if this is the last stage ..."
 
 if [ "$NEXT_STAGE" -gt "$PRECYCLE_STOP" ]; then
-    echo "     YES, the last stage was performed - precycle is terminated."
+    echo "         YES, the last stage was performed - precycle is terminated."
     echo ""
     echo "================================================================================"
     echo "|                                                                              |"
@@ -568,7 +559,7 @@ if [ "$NEXT_STAGE" -gt "$PRECYCLE_STOP" ]; then
 fi
 
 if [ -f "EXIT" ] || [ -f "STOP" ]; then
-    echo "     The EXIT/STOP file was found - precycle is softly interrupted."
+    echo "         The EXIT/STOP file was found - precycle is softly interrupted."
     echo ""
     echo "================================================================================"
     echo "|                                                                              |"
@@ -587,9 +578,9 @@ echo "# ------------------------------------------------------------------------
 SFILE="sfile.$$"
 pqstat -j $INF_JOB_ID | tee $SFILE
 echo "# ------------------------------------------------------------------------------"
-echo ""
 _UWT=`grep -i resources_used.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
 _TWT=`grep -i Resource_List.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
+rm -f "$SFILE"
 ((_RWT = _TWT - _UWT - 600))
 if [ "$_RWT" -le 0 ]; then
     _RWT=0
@@ -598,19 +589,14 @@ echo "# Remaining walltime: $_RWT (10 min substracted as backup)"
 echo "# MD exec peak time : $_PT"
 echo ""
     
+# do we have enough time for the next stage
 if [ "$_RWT" -le "$_PT" ]; then
-    echo " There is not enough walltime for the next stage - precycle is terminated."
+    echo " >>> There is not enough walltime for the next stage - resubmitting the job."
     echo ""
-    echo "================================================================================"
-    echo "|                                                                              |"
-    echo "|                               END OF PRECYCLE                                |"
-    echo "|                                                                              |"
-    echo "================================================================================"
-    echo ""
-    exit 0
+    break;
 fi
 
-echo " There is enough walltime for the next stage - precycle will continue with the next stage."
+echo " >>> There is enough walltime for the next stage - precycle will continue with the next stage."
 echo ""
 
 echo "#-------------------------------------------------------------------------------"
@@ -625,7 +611,7 @@ done     # end of PRECYCLE_ICYCLES cycle
 # resubmit job to the queue
 
 echo ""
-echo " 6. Submiting the next job to the batch system via the Infinity system ..."
+echo " 6. Submitting the next job to the batch system via the Infinity system ..."
 
 if [ "$INF_ARG_DESTINATION" == "" ] || [ "$INF_ARG_JOB" == "" ]; then
     echo ""
@@ -636,7 +622,11 @@ if [ "$INF_ARG_DESTINATION" == "" ] || [ "$INF_ARG_JOB" == "" ]; then
 fi
 
 # set next job parameters
-export INF_EXTERNAL_NAME_AFIX=\"#`printf %03d $NEXT_STAGE`\"
+if [ "$_REC" -eq 1 ]; then
+    export INF_EXTERNAL_FLAGS="+"   # failed run
+else
+    export INF_EXTERNAL_FLAGS="#"   # normal run
+fi
 export INF_EXTERNAL_START_AFTER=$PBS_JOBID
 
 presubmit
