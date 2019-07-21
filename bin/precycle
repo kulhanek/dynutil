@@ -227,8 +227,8 @@ fi
 
 if [ -e EXIT ] || [ -e STOP ]; then
     echo ""
-    echo " >>> ERROR: The EXIT/STOP file detected before the first production stage!"
-    echo "            Remove this file from the working directory."
+    echo " >>> ERROR: The EXIT/STOP file detected before the first production stage, existing ...!"
+    echo "            Remove this file from the working directory and resubmit the job."
     echo ""
     exit 1
 fi
@@ -245,6 +245,7 @@ echo "    Name format               : $PRECYCLE_NAME_FORMAT"
 echo "    Number of internal cycles : $PRECYCLE_ICYCLES"
 echo "    Storage directory         : $INF_ARCHIVE_DIR"
 echo "    Current stage             : $INF_RECYCLE_CURRENT"
+echo "    Autorecovery              : $PRECYCLE_AUTORECOVERY"
 echo "    ----------------------------------------------"
 echo "    Control file              : $PRECYCLE_CONTROL"
 echo "    ----------------------------------------------"
@@ -287,9 +288,14 @@ echo ""
 echo " 5. Internal loop"
 echo "#-------------------------------------------------------------------------------"
 
+_PT=0           # peak time for one icycle
+
 # -----------------------------------------------------------------------------
 
 for((I=0;I < $PRECYCLE_ICYCLES;I++)); do
+
+_TT=0           # total execution time
+_ST=`date +%s`  # start mark - initialization
 
 # -----------------------------------------------------------------------------
 # update info file
@@ -366,8 +372,14 @@ NEXT_STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $NEXT_STAGE`"
     echo ""
     echo " IL - 2. Performing molecular dynamics run for the '$STAGE_STRING' stage ..."
 
+_ET=`date +%s`      # end mark
+((_TT = _ET - _ST)) # increment total time
+
+_ST=`date +%s`  # start mark - MD run
+    
 $MD_CORE -O -i "$PRECYCLE_CONTROL" -o $STAGE_STRING.out -p $PRECYCLE_TOP -c $STAGE_STRING.rst7 \
          -x $STAGE_STRING.traj -r $NEXT_STAGE_STRING.rst7
+         
 
 if [ $? -ne 0 ]; then
     echo ""
@@ -377,13 +389,58 @@ if [ $? -ne 0 ]; then
         echo "            Autorecovery not enabled, exiting ... " 
         exit 1
     fi
+    
+    parchive tryget "icycle.stat"
+    
+    if [ -f icycle.stat ]; then
+        _IS="`head -1 icycle.stat`"
+        if [ "$_IS" == "FAILED" ]; then
+            echo "            The 'storage/icycle.stat' indicates FAILED status - this stage already failed, exiting ... " 
+            exit 1
+        fi
+    fi
+    
+    echo "FAILED" > icycle.stat
+    parchive move icycle.stat
+    
     # try job autorecovery by starting it again
     echo " >>> Waiting for 5 minut ..."
     sleep 300
     
+    # do we have enough time for the autorecovery run?
+    if [ "$_PT" -gt 0 ]; then
+        # only if peak time is already available
+        echo ""
+        echo "# job status"
+        echo "# ------------------------------------------------------------------------------"
+
+        SFILE="sfile.$$"
+        pqstat -j $INF_JOB_ID | tee $SFILE
+        echo "# ------------------------------------------------------------------------------"
+        echo ""
+        _UWT=`grep -i resources_used.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
+        _TWT=`grep -i Resource_List.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
+        ((_RWT = _TWT - _UWT - 600))
+        if [ "$_RWT" -le 0 ]; then
+            _RWT=0
+        fi
+        echo "# Remaining walltime: $_RWT (10 min substracted as backup)"
+        echo "# MD exec peak time : $_PT"
+        echo ""
+        
+        if [ "$_RWT" -le "$_PT" ]; then
+            echo " There is not enough walltime for the next run - cleaning this stage and resubmiting the job ..."
+            echo "" 
+            rm -f $STAGE_STRING.out $STAGE_STRING.traj $NEXT_STAGE_STRING.rst7 _abf.* _rst.* _cst.* _mtd.* _stm.*
+            break
+        fi
+    fi
+    
     echo ""
     echo " IL - 2. Performing molecular dynamics run for the '$STAGE_STRING' stage (autorecovery stage) ..."
 
+    _ST=`date +%s`  # start mark, scratch crashed MD run
+    
     $MD_CORE -O -i "$PRECYCLE_CONTROL" -o $STAGE_STRING.out -p $PRECYCLE_TOP -c $STAGE_STRING.rst7 \
                 -x $STAGE_STRING.traj -r $NEXT_STAGE_STRING.rst7 
                 
@@ -395,8 +452,16 @@ if [ $? -ne 0 ]; then
     fi
 fi
 
+echo "OK" > icycle.stat
+parchive move icycle.stat
+
+_ET=`date +%s`      # end mark
+((_TT = _ET - _ST)) # increment total time
+
 # remove the previous start file
 rm -f "$STAGE_STRING.rst7"
+
+ _ST=`date +%s`  # start mark - finalize
 
 # move results to precycle storage --------------------------------------------
 
@@ -420,9 +485,15 @@ if [ -f "_abf.rst" ]; then
     mv "_abf.rst" "$STAGE_STRING.abfrst"
     FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfrst"
 fi
+# ifc is kept for backward compatibility
 if [ -f "_abf.ifc" ]; then
     mv "_abf.ifc" "$STAGE_STRING.abfifc"
     FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfifc"
+fi
+# icf - instantaneous collective forces
+if [ -f "_abf.icf" ]; then
+    mv "_abf.icf" "$STAGE_STRING.abficf"
+    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abficf"
 fi
 if [ -f "_rst.out" ]; then
     mv "_rst.out" "$STAGE_STRING.rstout"
@@ -470,14 +541,22 @@ if [ -n "$FILES_TO_ARCHIVE" ]; then
     if [ $? -ne 0 ]; then exit 1; fi
 fi
 
+_ET=`date +%s`      # end mark
+((_TT = _ET - _ST)) # increment total time
+
+# update peak time for one icycle
+if [ "$_PT" -le "$_TT" ]; then
+    _PT=$_TT
+fi  
+
 #---------------------------------------------------------------------------
 # check for end
 
 echo ""
-echo " IL - 4. Testing if this is the last run ..."
+echo " IL - 4. Testing if this is the last stage ..."
 
 if [ "$NEXT_STAGE" -gt "$PRECYCLE_STOP" ]; then
-    echo "      YES, the last run was performed - precycle is terminated."
+    echo "     YES, the last stage was performed - precycle is terminated."
     echo ""
     echo "================================================================================"
     echo "|                                                                              |"
@@ -489,7 +568,7 @@ if [ "$NEXT_STAGE" -gt "$PRECYCLE_STOP" ]; then
 fi
 
 if [ -f "EXIT" ] || [ -f "STOP" ]; then
-    echo "      The EXIT/STOP file was found - precycle is softly interrupted."
+    echo "     The EXIT/STOP file was found - precycle is softly interrupted."
     echo ""
     echo "================================================================================"
     echo "|                                                                              |"
@@ -500,7 +579,38 @@ if [ -f "EXIT" ] || [ -f "STOP" ]; then
     exit 0
 fi
 
-    echo "      NO, precycle will continue with the next run."
+# do we have enough time for the next run?
+echo ""
+echo "# job status"
+echo "# ------------------------------------------------------------------------------"
+
+SFILE="sfile.$$"
+pqstat -j $INF_JOB_ID | tee $SFILE
+echo "# ------------------------------------------------------------------------------"
+echo ""
+_UWT=`grep -i resources_used.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
+_TWT=`grep -i Resource_List.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
+((_RWT = _TWT - _UWT - 600))
+if [ "$_RWT" -le 0 ]; then
+    _RWT=0
+fi
+echo "# Remaining walltime: $_RWT (10 min substracted as backup)"
+echo "# MD exec peak time : $_PT"
+echo ""
+    
+if [ "$_RWT" -le "$_PT" ]; then
+    echo " There is not enough walltime for the next stage - precycle is terminated."
+    echo ""
+    echo "================================================================================"
+    echo "|                                                                              |"
+    echo "|                               END OF PRECYCLE                                |"
+    echo "|                                                                              |"
+    echo "================================================================================"
+    echo ""
+    exit 0
+fi
+
+echo " There is enough walltime for the next stage - precycle will continue with the next stage."
 echo ""
 
 echo "#-------------------------------------------------------------------------------"
@@ -515,7 +625,7 @@ done     # end of PRECYCLE_ICYCLES cycle
 # resubmit job to the queue
 
 echo ""
-echo " 6. Submiting the next run to the batch system via the Infinity system ..."
+echo " 6. Submiting the next job to the batch system via the Infinity system ..."
 
 if [ "$INF_ARG_DESTINATION" == "" ] || [ "$INF_ARG_JOB" == "" ]; then
     echo ""
