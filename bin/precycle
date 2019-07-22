@@ -391,9 +391,12 @@ fi
 echo ""
 echo " 4. Clean the previous run ..."
 
+# archive runtime files
 parchive runtime "$PRECYCLE_START" "$((STAGE - PRECYCLE_ICYCLES + 1))" "$PRECYCLE_NAME_FORMAT"
-
 if [ $? -ne 0 ]; then exit 1; fi;
+
+# clean them locally
+$ABS_ROOT/sbin/abs-update-infofile clean
 
 echo ""
 echo " 5. Internal loop"
