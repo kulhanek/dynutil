@@ -236,6 +236,7 @@ if [ -e EXIT ] || [ -e STOP ]; then
     exit 1
 fi
 
+
 echo ""
 echo " 2. Precycle setup"
 echo "--------------------------------------------------"
@@ -255,6 +256,113 @@ echo "    ----------------------------------------------"
 echo "    MD module                 : $MD_MODULE"
 echo "    MD executable             : $MD_CORE"
 
+
+# ----------------------------------------------------------------------------------
+
+function archive_results() {
+
+    FILES_TO_ARCHIVE=""
+
+    SUFFIX=""
+    if [ "$1" == "failed" ]; then
+        SUFFIX=".failed"
+        if [ -f "$STAGE_STRING.traj" ]; then
+            mv $STAGE_STRING.traj $STAGE_STRING.traj${SUFFIX}
+            FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.traj${SUFFIX}"
+        fi
+        if [ -f "$STAGE_STRING.out" ]; then
+            mv $STAGE_STRING.out $STAGE_STRING.out${SUFFIX}
+            FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.out${SUFFIX}"
+        fi  
+        if [ -f "$NEXT_STAGE_STRING.rst7" ]; then
+            mv $NEXT_STAGE_STRING.rst7 $NEXT_STAGE_STRING.rst7${SUFFIX}
+            FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $NEXT_STAGE_STRING.rst7${SUFFIX}"
+        fi  
+    else
+        if [ -f "$STAGE_STRING.traj" ]; then
+            FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.traj"
+        fi
+        if [ -f "$STAGE_STRING.out" ]; then
+            FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.out"
+        fi  
+        if [ -f "$NEXT_STAGE_STRING.rst7" ]; then
+            FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $NEXT_STAGE_STRING.rst7"
+        fi  
+    fi
+
+    if [ -f mdinfo ]; then
+        mv mdinfo "$STAGE_STRING.mdinfo${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mdinfo${SUFFIX}"
+    fi
+
+    # PMFLib files ---------------------------
+
+    if [ -f "_abf.out" ]; then
+        mv "_abf.out" "$STAGE_STRING.abfout${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfout${SUFFIX}"
+    fi
+    if [ -f "_abf.rst" ]; then
+        mv "_abf.rst" "$STAGE_STRING.abfrst${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfrst${SUFFIX}"
+    fi
+    # ifc is kept for backward compatibility
+    if [ -f "_abf.ifc" ]; then
+        mv "_abf.ifc" "$STAGE_STRING.abfifc${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfifc${SUFFIX}"
+    fi
+    # icf - instantaneous collective forces
+    if [ -f "_abf.icf" ]; then
+        mv "_abf.icf" "$STAGE_STRING.abficf${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abficf${SUFFIX}"
+    fi
+    if [ -f "_rst.out" ]; then
+        mv "_rst.out" "$STAGE_STRING.rstout${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.rstout${SUFFIX}"
+    fi
+    if [ -f "_rst.rst" ]; then
+        mv "_rst.rst" "$STAGE_STRING.rstrst${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.rstrst${SUFFIX}"
+    fi
+    if [ -f "_mon.out" ]; then
+        mv "_mon.out" "$STAGE_STRING.monout${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.monout${SUFFIX}"
+    fi
+    if [ -f "_cst.out" ]; then
+        mv "_cst.out" "$STAGE_STRING.cstout${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.cstout${SUFFIX}"
+    fi
+    if [ -f "_cst.rst" ]; then
+        mv "_cst.rst" "$STAGE_STRING.cstrst${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.cstrst${SUFFIX}"
+    fi
+    if [ -f "_mtd.out" ]; then
+        mv "_mtd.out" "$STAGE_STRING.mtdout${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdout${SUFFIX}"
+    fi
+    if [ -f "_mtd.rst" ]; then
+        mv "_mtd.rst" "$STAGE_STRING.mtdrst${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdrst${SUFFIX}"
+    fi
+    if [ -f "_mtd.cvs" ]; then
+        mv "_mtd.cvs" "$STAGE_STRING.mtdcvs${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdcvs${SUFFIX}"
+    fi
+    if [ -f "_mtd.hills" ]; then
+        mv "_mtd.hills" "$STAGE_STRING.mtdhills${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdhills${SUFFIX}"
+    fi
+    if [ -f "_stm.out" ]; then
+        mv "_stm.out" "$STAGE_STRING.stmout${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.stmout${SUFFIX}"
+    fi
+
+    if [ -n "$FILES_TO_ARCHIVE" ]; then
+        parchive move $FILES_TO_ARCHIVE
+        if [ $? -ne 0 ]; then exit 1; fi
+    fi
+}
+
+
 # -----------------------------------------------------------------------------
 # find previous recycle information
 
@@ -267,7 +375,7 @@ STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $STAGE`"
 if [ "$STAGE" == "$(($PRECYCLE_STOP+1))" ]; then
     echo ""
     echo " >>> ERROR: The coordinate file for '$STAGE_STRING' stage is out of specified range!"
-    echo "            All productions were probably processed!"
+    echo "            All productions were already processed!"
     echo ""
     exit 1
 fi
@@ -414,29 +522,10 @@ if [ $? -ne 0 ]; then
     parchive move icycle.stat
     
     # save failed outputs
-    FILES_TO_ARCHIVE=""
-    
-    if [ -f $STAGE_STRING.out ]; then
-        mv $STAGE_STRING.out $STAGE_STRING.out.failed
-        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.out.failed"
-    fi
-    
-    if [ -f $STAGE_STRING.traj ]; then
-        mv $STAGE_STRING.traj $STAGE_STRING.traj.failed
-        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.traj.failed"
-    fi  
-    if [ -f _rst.out ]; then
-        mv _rst.out $STAGE_STRING.rstout.failed
-        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.rstout.failed"
-    fi      
-    
-    if [ -n "$FILES_TO_ARCHIVE" ]; then
-        parchive move $FILES_TO_ARCHIVE
-        if [ $? -ne 0 ]; then exit 1; fi
-    fi    
+    archive_results "failed"
     
     # clean the run
-    rm -f $STAGE_STRING.rst7 $STAGE_STRING.out $STAGE_STRING.traj $NEXT_STAGE_STRING.rst7 _abf.* _rst.* _cst.* _mtd.* _stm.*
+    rm -f $STAGE_STRING.rst7 $STAGE_STRING.out $STAGE_STRING.traj $NEXT_STAGE_STRING.rst7 _abf.* _rst.* _cst.* _mtd.* _stm.* logfile mdinfo
     
     # and resubmit the job
     _REC=1 # set autorecovery flag
@@ -449,8 +538,8 @@ parchive move icycle.stat
 _ET=`date +%s`              # end mark
 ((_TT = _TT + _ET - _ST))   # increment total time
 
-# remove the previous start file
-rm -f "$STAGE_STRING.rst7"
+# clean some files
+rm -f "$STAGE_STRING.rst7" logfile
 
  _ST=`date +%s`  # start mark - finalize
 
@@ -459,78 +548,7 @@ rm -f "$STAGE_STRING.rst7"
 echo ""
 echo " IL - 3. Moving results to precycle storage ..."
 
-FILES_TO_ARCHIVE="$STAGE_STRING.traj $STAGE_STRING.out $NEXT_STAGE_STRING.rst7"
-
-if [ -f mdinfo ]; then
-    mv mdinfo "$STAGE_STRING.mdinfo"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mdinfo"
-fi
-
-# PMFLib files ---------------------------
-
-if [ -f "_abf.out" ]; then
-    mv "_abf.out" "$STAGE_STRING.abfout"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfout"
-fi
-if [ -f "_abf.rst" ]; then
-    mv "_abf.rst" "$STAGE_STRING.abfrst"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfrst"
-fi
-# ifc is kept for backward compatibility
-if [ -f "_abf.ifc" ]; then
-    mv "_abf.ifc" "$STAGE_STRING.abfifc"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfifc"
-fi
-# icf - instantaneous collective forces
-if [ -f "_abf.icf" ]; then
-    mv "_abf.icf" "$STAGE_STRING.abficf"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abficf"
-fi
-if [ -f "_rst.out" ]; then
-    mv "_rst.out" "$STAGE_STRING.rstout"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.rstout"
-fi
-if [ -f "_rst.rst" ]; then
-    mv "_rst.rst" "$STAGE_STRING.rstrst"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.rstrst"
-fi
-if [ -f "_mon.out" ]; then
-    mv "_mon.out" "$STAGE_STRING.monout"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.monout"
-fi
-if [ -f "_cst.out" ]; then
-    mv "_cst.out" "$STAGE_STRING.cstout"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.cstout"
-fi
-if [ -f "_cst.rst" ]; then
-    mv "_cst.rst" "$STAGE_STRING.cstrst"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.cstrst"
-fi
-if [ -f "_mtd.out" ]; then
-    mv "_mtd.out" "$STAGE_STRING.mtdout"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdout"
-fi
-if [ -f "_mtd.rst" ]; then
-    mv "_mtd.rst" "$STAGE_STRING.mtdrst"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdrst"
-fi
-if [ -f "_mtd.cvs" ]; then
-    mv "_mtd.cvs" "$STAGE_STRING.mtdcvs"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdcvs"
-fi
-if [ -f "_mtd.hills" ]; then
-    mv "_mtd.hills" "$STAGE_STRING.mtdhills"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdhills"
-fi
-if [ -f "_stm.out" ]; then
-    mv "_stm.out" "$STAGE_STRING.stmout"
-    FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.stmout"
-fi
-
-if [ -n "$FILES_TO_ARCHIVE" ]; then
-    parchive move $FILES_TO_ARCHIVE
-    if [ $? -ne 0 ]; then exit 1; fi
-fi
+archive_results
 
 _ET=`date +%s`              # end mark
 ((_TT = _TT + _ET - _ST))   # increment total time
@@ -611,7 +629,7 @@ done     # end of PRECYCLE_ICYCLES cycle
 # resubmit job to the queue
 
 echo ""
-echo " 6. Submitting the next job to the batch system via the Infinity system ..."
+echo " 6. Submitting the next stage as a new job to the batch system via the Infinity system ..."
 
 if [ "$INF_ARG_DESTINATION" == "" ] || [ "$INF_ARG_JOB" == "" ]; then
     echo ""
