@@ -29,7 +29,7 @@
 
 # optional
 # PRECYCLE_ICYCLES		        - number of internal cycles
-# PRECYCLE_AUTORECOVERY	        - 0/1 - skip/try to recover the last failed run
+# PRECYCLE_AUTORECOVERY	        - 0 - disabled / -1 from PRECYCLE_CRD / n-1 from previous restart 
 
 # -----------------------------------------------------------------------------
 # print header
@@ -189,9 +189,11 @@ if [ -z "PRECYCLE_AUTORECOVERY" ]; then
    export PRECYCLE_AUTORECOVERY="0"
 fi
 
-if [ "$PRECYCLE_AUTORECOVERY" -ne 0 ] && [ "$PRECYCLE_AUTORECOVERY" -ne 1 ] ; then
+expr $PRECYCLE_AUTORECOVERY + 2 &>/dev/null
+
+if [ $? -ne 0 ]; then
     if [ "$_ERROR" == "0" ]; then echo ""; fi
-    echo " >>> ERROR: Variable PRECYCLE_AUTORECOVERY has to be either 0 or 1!"
+    echo " >>> ERROR: Variable PRECYCLE_AUTORECOVERY is not a number!"
     echo ""
     _ERROR=1
 fi
@@ -502,8 +504,9 @@ $MD_CORE -O -i "$PRECYCLE_CONTROL" -o $STAGE_STRING.out -p $PRECYCLE_TOP -c $STA
 if [ $? -ne 0 ]; then
     echo ""
         echo " >>> ERROR: Molecular dynamics run failed!"
-    if [ "$PRECYCLE_AUTORECOVERY" -ne 1 ]; then
-        echo "            Autorecovery not enabled, exiting ... " 
+    if [ "$PRECYCLE_AUTORECOVERY" -eq 0 ]; then
+        echo "            Autorecovery is not enabled, exiting ... " 
+        echo ""
         exit 1
     fi
         echo "            Resubmitting the job after MD crashed (autorecovery is on)!"
@@ -513,7 +516,8 @@ if [ $? -ne 0 ]; then
     
     if [ -f icycle.stat ]; then
         _IS="`head -1 icycle.stat`"
-        if [ "$_IS" == "FAILED" ]; then
+        # test if icycle.stat contains status, which is FAILED
+        if [ -n "$_IS" ] && [ "$_IS" == "FAILED" ]; then
             echo " >>> The 'storage/icycle.stat' file indicates FAILED status - this stage already failed, exiting ... " 
             echo ""
             rm -f icycle.stat
@@ -529,6 +533,41 @@ if [ $? -ne 0 ]; then
     
     # clean the run
     rm -f $STAGE_STRING.rst7 $STAGE_STRING.out $STAGE_STRING.traj $NEXT_STAGE_STRING.rst7 _abf.* _rst.* _cst.* _mtd.* _stm.* logfile mdinfo
+    
+    # prepare the restart file for the autorestarted job
+    if [ "$PRECYCLE_AUTORECOVERY" -eq -1 ]; then
+        # use the initial restart file
+        cp $PRECYCLE_CRD $STAGE_STRING.rst7
+        if [ $? -ne 0 ]; then exit 1; fi
+        
+        parchive move $STAGE_STRING.rst7
+        if [ $? -ne 0 ]; then exit 1; fi
+        
+        echo " >>> autorecovery from $PRECYCLE_CRD ... " 
+    else
+        # rollback 
+        ((PRECYCLE_AUTORECOVERY = STAGE - PRECYCLE_AUTORECOVERY + 1))
+        if [ "$PRECYCLE_AUTORECOVERY" -le "$PRECYCLE_START" ]; then
+            PRECYCLE_AUTORECOVERY=$PRECYCLE_START
+        fi
+        PREV_STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $PRECYCLE_AUTORECOVERY`"
+        
+        if [ "$PREV_STAGE_STRING" != "$STAGE_STRING" ]; then
+            parchive get $PREV_STAGE_STRING.rst7
+            if [ $? -ne 0 ]; then exit 1; fi
+            
+            mv $PREV_STAGE_STRING.rst7 $STAGE_STRING.rst7
+            if [ $? -ne 0 ]; then exit 1; fi
+            
+            parchive move $STAGE_STRING.rst7
+            if [ $? -ne 0 ]; then exit 1; fi
+            echo " >>> autorecovery from $PREV_STAGE_STRING.rst7 ... "
+        else
+            echo " >>> autorecovery from $STAGE_STRING.rst7 ... "
+        fi
+    fi
+    
+    echo 
     
     # and resubmit the job
     _REC=1 # set autorecovery flag
@@ -606,8 +645,8 @@ rm -f "$SFILE"
 if [ "$_RWT" -le 0 ]; then
     _RWT=0
 fi
-echo "# Remaining walltime: $_RWT (10 min substracted as backup)"
-echo "# MD exec peak time : $_PT"
+echo "# Remaining walltime: $_RWT seconds (10 min substracted as backup)"
+echo "# MD exec peak time : $_PT seconds"
 echo ""
     
 # do we have enough time for the next stage

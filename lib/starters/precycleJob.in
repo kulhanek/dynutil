@@ -47,8 +47,12 @@ export PRECYCLE_STOP=""
 export PRECYCLE_ICYCLES="auto"
 
 # autorecovery mode -----------------------------------------------------------
-# 0 - no autorecovery enabled, abort the job if MD execution fails
-# 1 - autorecovery enabled, try to rerun the last MD run if it fails but only once
+# what to do when MD stage crashes
+#  0 - exit precycle, autorecovery is disabled
+# -1 - recover from PRECYCLE_CRD, precycleJob is submmited as a new job
+#  n - recover from n-1 previous restart, precycleJob is submmited as a new job  
+# autorecovery of the same stage is possible only once
+# status of the last stage is in storage/icycle.stat  
 export PRECYCLE_AUTORECOVERY="0"
 
 # file name format ------------------------------------------------------------
