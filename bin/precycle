@@ -185,7 +185,7 @@ fi
 
 # autorecovery ---
 
-if [ -z "PRECYCLE_AUTORECOVERY" ]; then
+if [ -z "$PRECYCLE_AUTORECOVERY" ]; then
    export PRECYCLE_AUTORECOVERY="0"
 fi
 
