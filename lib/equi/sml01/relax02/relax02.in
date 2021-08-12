@@ -17,6 +17,7 @@
  ntb=1,
  cut=9.0,
 
+ ig=-1,
  tempi=1.0,
  temp0=300.0,
  ntt=3,

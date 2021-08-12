@@ -19,6 +19,7 @@
  ntb=0,
  cut=999,
 
+ ig=-1,
  temp0=300.0,
  ntt=3,
  gamma_ln=2.0,
