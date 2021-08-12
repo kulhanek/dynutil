@@ -3,11 +3,6 @@
 SITES="clusters"
 PREFIX="common"
 
-if [[ ! ( ( "`hostname -f`" == "deb8.ncbr.muni.cz" ) || ( "`hostname -f`" == *"salomon"* ) )  ]]; then
-    echo "unsupported build machine!"
-    exit 1
-fi
-
 set -o pipefail
 
 # ------------------------------------
