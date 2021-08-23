@@ -475,7 +475,8 @@ else
     PREV_STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $PREV_STAGE`"
 
     # try to recover PMFLib restarts - optional
-    parchive tryget "$PREV_STAGE_STRING.abfrst" "$PREV_STAGE_STRING.cstrst" "$PREV_STAGE_STRING.mtdrst"
+    parchive tryget "$PREV_STAGE_STRING.abfrst" "$PREV_STAGE_STRING.cstrst"   \
+                    "$PREV_STAGE_STRING.mtdrst" "$PREV_STAGE_STRING.usabfrst"
     if [ -f "$PREV_STAGE_STRING.abfrst" ]; then
         mv "$PREV_STAGE_STRING.abfrst" _abf.rst
         echo ">> INFO: PMFLib _abf.rst recovered!"
