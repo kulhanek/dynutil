@@ -364,7 +364,13 @@ function archive_results() {
     if [ -f "_us-abf.rst" ]; then
         mv "_us-abf.rst" "$STAGE_STRING.usabfrst${SUFFIX}"
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.usabfrst${SUFFIX}"
-    fi     
+    fi 
+    
+    # Middle Scheme kinetic energy
+    if [ -f "eke.dat" ]; then
+        mv "eke.dat" "$STAGE_STRING.ekedat${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.ekedat${SUFFIX}"
+    fi 
 
     if [ -n "$FILES_TO_ARCHIVE" ]; then
         parchive move $FILES_TO_ARCHIVE
@@ -545,7 +551,7 @@ if [ $? -ne 0 ]; then
     archive_results "failed"
     
     # clean the run
-    rm -f $STAGE_STRING.rst7 $STAGE_STRING.out $STAGE_STRING.traj $NEXT_STAGE_STRING.rst7 _abf.* _rst.* _cst.* _mtd.* _stm.* logfile mdinfo
+    rm -f $STAGE_STRING.rst7 $STAGE_STRING.out $STAGE_STRING.traj $NEXT_STAGE_STRING.rst7 _abf.* _rst.* _cst.* _mtd.* _stm.* eke.dat logfile mdinfo
     
     # prepare the restart file for the autorestarted job
     if [ "$PRECYCLE_AUTORECOVERY" -eq -1 ]; then
