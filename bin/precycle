@@ -435,6 +435,7 @@ while ! pqstat -j "$INF_JOB_ID" &> "$SFILE"; do
     fi
     ((_ST = RANDOM % 300))
     echo ">>> pqstat failed, sleeping for $_ST seconds ..."
+    sleep $_ST
     ((I++))
 done
 
