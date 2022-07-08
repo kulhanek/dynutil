@@ -447,7 +447,7 @@ _CUT=`date +%s`
 # substract 10 minutes for job administration
 ((_ENT=_CUT + _TWT - _UWT - 600))
 
-echo " Stop before: $_ENT seconds"
+echo " Stop before: $_ENT seconds (`date -d @$_ENT`)"
 
 # -----------------------------------------------------------------------------
 
