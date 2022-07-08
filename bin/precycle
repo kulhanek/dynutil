@@ -421,6 +421,35 @@ echo "#-------------------------------------------------------------------------
 _PT=0           # peak time for one icycle
 
 # -----------------------------------------------------------------------------
+# determine the latest time for execution (_ENT)
+
+SFILE="sfile.$$"
+I=0
+while ! pqstat -j "$INF_JOB_ID" &> "$SFILE"; do
+    if [[ I -gt 3 ]]; then
+        echo ""
+        echo ">>> ERROR: Unable to determine the job walltime!"
+        echo ""
+        cat "$SFILE"
+        exit 1
+    fi
+    ((_ST = RANDOM % 300))
+    echo ">>> pqstat failed, sleeping for $_ST seconds ..."
+    ((I++))
+done
+
+_UWT=`grep -i resources_used.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
+_TWT=`grep -i Resource_List.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
+rm -f "$SFILE"
+
+_CUT=`date +%s`
+
+# substract 10 minutes for job administration
+((_ENT=_CUT + _TWT - _UWT - 600))
+
+echo " Stop before: $_ENT seconds"
+
+# -----------------------------------------------------------------------------
 
 for((I=0;I < $PRECYCLE_ICYCLES;I++)); do
 
@@ -508,6 +537,7 @@ NEXT_STAGE_STRING="`printf "$PRECYCLE_NAME_FORMAT" $NEXT_STAGE`"
 
     echo ""
     echo " IL - 2. Performing molecular dynamics run for the '$STAGE_STRING' stage ..."
+    echo "         Time: `date`"    
 
 _ET=`date +%s`              # end mark
 ((_TT = _TT + _ET - _ST))   # increment total time
@@ -608,6 +638,7 @@ rm -f "$STAGE_STRING.rst7" logfile
 
 echo ""
 echo " IL - 3. Moving results to precycle storage ..."
+echo "         Time: `date`"  
 
 archive_results
 
@@ -654,13 +685,8 @@ echo ""
 echo "# job status"
 echo "# ------------------------------------------------------------------------------"
 
-SFILE="sfile.$$"
-pqstat -j $INF_JOB_ID | tee $SFILE
-echo "# ------------------------------------------------------------------------------"
-_UWT=`grep -i resources_used.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
-_TWT=`grep -i Resource_List.walltime $SFILE | awk '{ print $3; }' | awk -F: '{ print $1*3600 + $2*60 + $3; }'`
-rm -f "$SFILE"
-((_RWT = _TWT - _UWT - 600))
+_CUT=`date +%s`
+((_RWT = _ENT - _CUT))
 if [ "$_RWT" -le 0 ]; then
     _RWT=0
 fi
@@ -691,6 +717,7 @@ done     # end of PRECYCLE_ICYCLES cycle
 
 echo ""
 echo " 6. Submitting the next stage as a new job to the batch system via the Infinity system ..."
+echo "    Time: `date`"
 
 if [ "$INF_ARG_DESTINATION" == "" ] || [ "$INF_ARG_JOB" == "" ]; then
     echo ""
