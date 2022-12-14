@@ -30,7 +30,7 @@
 
  ntp=1,
  pres0=1.0,
- barostat=1,
+ barostat=2,
 
  ntc=2,
 &end
