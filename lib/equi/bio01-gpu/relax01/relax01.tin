@@ -1,0 +1,24 @@
+#
+# relax01
+#
+# geometry optimization of all solvent atoms, protein is restrained
+#
+
+&cntrl
+ imin=1,
+ maxcyc=10000,
+ ncyc=5000,
+
+ ntpr=10,
+
+ ntf=1,
+ ntb=1,
+ cut=9.0,
+ ntc=1,
+
+ ntr=1,
+ restraintmask = "(:1-NSOLRES) & (! @H=)",
+ restraint_wt  = 50.0,
+
+&end
+

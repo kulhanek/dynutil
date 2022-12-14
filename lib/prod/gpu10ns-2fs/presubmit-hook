@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# delete this after the review
+echo ""
+echo ">>> REVIEW presubmit-hook and precycleJob scripts"
+echo ""
+exit 1
+
+# update these lines
+# cp ../02.equi/sys.parm7            . || exit 1
+# cp ../02.equi/relax10/relax10.rst7 .
