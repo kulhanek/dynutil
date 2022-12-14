@@ -2,7 +2,8 @@
 
 # delete this after the review
 echo ""
-echo ">>> REVIEW presubmit-hook and precycleJob scripts!"
+echo ">>> REVIEW presubmit-hook and precycleJob scripts"
+echo "           AND ENSURE that the topology is in the HMR mode!"
 echo ""
 exit 1
 

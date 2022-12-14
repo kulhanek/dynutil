@@ -1,0 +1,79 @@
+#!/usr/bin/env infinity-env
+# DO NOT CHANGE LINE BELOW ----------------------------------------------------
+# INFINITY JobType=precycle
+# INFINITY ExcludedFiles=storage
+# DO NOT CHANGE LINE ABOVE ----------------------------------------------------
+# =============================================================================
+# dynutil vDYNUTIL_ALL_VERSION
+# (c) 2022       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2019       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2017       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2013       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2012       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2009       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2005, 2006 Petr Kulhanek, kulhanek@chemi.muni.cz
+# =============================================================================
+# -----------------------------------------------------------------------------
+# precycle-starter - input script for restartable production dynamics
+# -----------------------------------------------------------------------------
+
+# WARNING: This type of job supports an automatic job restart of crashed job!!!
+#          In the case of failure, just resubmit a job into a queue system
+#          without any modification of this script!
+#
+# INFO:    The computed data are stored into the job input storage archive, 
+#          which is the 'storage' subdirectory.
+
+# input topology --------------------------------------------------------------
+# file name without path, this file has to be present in working directory
+export PRECYCLE_TOP=""
+
+# input coordinates -----------------------------------------------------------
+# file name without path, this file has to be present in working directory
+# this file is used only for first production run
+export PRECYCLE_CRD=""
+
+# control file for MD it has to be compatible with used MD program ------------
+# file name without path, this file has to be presented in working directory
+export PRECYCLE_CONTROL="prod.in"
+
+# index of first production stage ---------------------------------------------
+export PRECYCLE_START="1"
+
+# index of final production stage ---------------------------------------------
+export PRECYCLE_STOP=""
+
+# number of internal cycles ---------------------------------------------------
+# either explicit number or "auto" for automatic cyclling within the job walltime
+export PRECYCLE_ICYCLES="auto"
+
+# autorecovery mode -----------------------------------------------------------
+# what to do when MD stage crashes
+#  0 - exit precycle, autorecovery is disabled
+# -1 - recover from PRECYCLE_CRD, precycleJob is submmited as a new job
+#  n - recover from n-1 previous restart, precycleJob is submmited as a new job  
+# autorecovery of the same stage is possible only once
+# status of the last stage is in storage/icycle.stat  
+export PRECYCLE_AUTORECOVERY="0"
+
+# file name format ------------------------------------------------------------
+# it determine the base name of produced files (syntax according to printf)
+export PRECYCLE_NAME_FORMAT="prod%03d"
+
+# program to perform MD -------------------------------------------------------
+export MD_MODULE="pmemd-cuda"
+export MD_CORE="pmemd.cuda"
+
+#------------------------------------------------------------------------------
+# THIS IS EXECUTION PART, PLEASE DO NOT CHANGE IT !! ==========================
+#------------------------------------------------------------------------------
+
+# do not execute if some parameter is specified
+# this is used by INFINITY autodetection plugin
+
+if [ $# -eq 0 ];  then
+      module add dynutil:DYNUTIL_ALL_VERSION
+      module add $MD_MODULE
+      precycle
+fi
+
