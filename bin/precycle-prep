@@ -1,0 +1,87 @@
+#!/bin/bash
+# =============================================================================
+# dynutil v5.0
+# (c) 2017       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2009       Petr Kulhanek, kulhanek@chemi.muni.cz
+# (c) 2005, Petr Kulhanek, kulhanek@chemi.muni.cz
+# =============================================================================
+# -----------------------------------------------------------------------------
+# precycle-prep - preparation stage for precycle
+# -----------------------------------------------------------------------------
+
+# determine full path to the script -------------------------------------------
+RELPATH=`dirname $0`
+if [ -z "$RELPATH" ]; then
+    FULPATH=`type $0`
+else
+    FULPATH=`cd $PWD; cd $RELPATH; pwd`
+fi
+
+# determine DYNUTIL_DIR
+DYNUTIL_DIR=`dirname $FULPATH`
+
+if [ "$DYNUTIL_DIR" == "" ]; then
+    echo ""
+    echo " ERROR: DYNUTIL_DIR variable is not set!"
+    echo ""
+    exit 1
+fi
+
+if [ $# -ne 1 ]; then
+    echo ""
+    echo " ERROR: Name of production protocol is not provided!"
+    echo ""
+    echo "        Usage: precycle-prep <protocol_name>"
+    echo ""
+    echo "        Available protocols: `cd $DYNUTIL_DIR/lib/prod; ls -d * | tr '\n' ' '`"
+    echo ""
+    exit 1
+fi
+
+# check old setup of precycle --------------------------------------------------
+
+ANSWER=YES
+
+if [ -e precycleJob ]; then
+    echo ""
+    echo " WARNING: The precycleJob file already exists in the working directory!"
+    echo "          Do you want to overwrite it? (YES/NO)"
+    read ANSWER
+    if [ "$ANSWER" == "NO" ]; then
+        echo "The original precycleJob file was kept!"
+        exit
+    fi
+fi
+
+if ! [ -d $DYNUTIL_DIR/lib/prod/$1 ]; then
+    echo ""
+    echo " ERROR: The production protocol '$1' does not exist!"
+    echo ""
+    exit 1
+fi
+
+cp -r -f $DYNUTIL_DIR/lib/prod/$1/* ./
+
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+DYNUTIL_ALL_VERSION="`module getactver dynutil`"
+
+if [ -f precycleJob.in ]; then
+    sed -e "s/DYNUTIL_ALL_VERSION/$DYNUTIL_ALL_VERSION/g" < precycleJob.in > precycleJob || exit 1
+    rm -f precycleJob.in
+else
+    sed -e "s/DYNUTIL_ALL_VERSION/$DYNUTIL_ALL_VERSION/g" < $DYNUTIL_DIR/lib/starters/precycleJob/precycleJob.in > precycleJob || exit 1
+fi
+
+# make local storage directory
+mkdir -p storage
+
+# make script executable
+chmod +x precycleJob
+
+echo ""
+echo "All neccessary files for precycle were copied to the working directory."
+echo ""
+
