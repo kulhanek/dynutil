@@ -1,4 +1,12 @@
 #!/bin/bash
 
-cp ../01.assembly/sys.parm7 . || exit 1
-cp ../01.assembly/sys.rst7 .
+# delete this after the review
+echo ""
+echo ">>> REVIEW presubmit-hook and pequiJob scripts"
+echo "           AND ESPECIALLY setup of the NUM_OF_SOLUTE_RESIDUES item!!!!"
+echo ""
+exit 1
+
+# update these lines
+# cp ../01.assembly/sys.parm7 . || exit 1
+# cp ../01.assembly/sys.rst7 .
