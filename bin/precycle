@@ -582,12 +582,6 @@ if [ $? -ne 0 ]; then
             parchive move icycle.stat            
             exit 1          
         fi
-    else
-        echo " >>> Marking this stage as a PROBLEM in the 'storage/icycle.stat' file."
-        echo "     Resubmitting the job."
-        echo ""    
-        echo "PROBLEM" > icycle.stat
-        parchive move icycle.stat
     fi
     
     # save failed outputs
@@ -630,8 +624,13 @@ if [ $? -ne 0 ]; then
     fi
     
     echo 
+    echo " >>> Marking this stage as a PROBLEM in the 'storage/icycle.stat' file."
+    echo "     Resubmitting the job."
+    echo ""    
+    echo "PROBLEM" > icycle.stat
+    parchive move icycle.stat  
     
-    # and resubmit the job
+    # and resubmit the job    
     _REC=1 # set autorecovery flag    
     break;
 fi
