@@ -573,10 +573,17 @@ if [ $? -ne 0 ]; then
             rm -f icycle.stat
             exit 1
         fi
+        if [ -n "$_IS" ] && [ "$_IS" == "PROBLEM" ]; then
+            echo " >>> The 'storage/icycle.stat' file indicates PROBLEM status - this stage already failed, exiting ... " 
+            echo ""
+            echo "FAILED" > icycle.stat
+            parchive move icycle.stat            
+            exit 1          
+        fi
+    else
+        echo "PROBLEM" > icycle.stat
+        parchive move icycle.stat
     fi
-    
-    echo "FAILED" > icycle.stat
-    parchive move icycle.stat
     
     # save failed outputs
     archive_results "failed"
@@ -620,7 +627,7 @@ if [ $? -ne 0 ]; then
     echo 
     
     # and resubmit the job
-    _REC=1 # set autorecovery flag
+    _REC=1 # set autorecovery flag    
     break;
 fi
 
@@ -730,9 +737,9 @@ fi
 
 # set next job parameters
 if [ "$_REC" -eq 1 ]; then
-    export INF_EXTERNAL_FLAGS="+"   # failed run
-else
-    export INF_EXTERNAL_FLAGS="#"   # normal run
+    export INF_EXTERNAL_FLAGS="-"   # problem run
+else 
+    export INF_EXTERNAL_FLAGS="+"   # normal run
 fi
 export INF_EXTERNAL_START_AFTER=$PBS_JOBID
 
