@@ -568,19 +568,24 @@ if [ $? -ne 0 ]; then
         _IS="`head -1 icycle.stat`"
         # test if icycle.stat contains status, which is FAILED
         if [ -n "$_IS" ] && [ "$_IS" == "FAILED" ]; then
-            echo " >>> The 'storage/icycle.stat' file indicates FAILED status - this stage already failed, exiting ... " 
+            echo " >>> The 'storage/icycle.stat' file indicates FAILED status."
+            echo "     This should not happen. Exiting ..." 
             echo ""
             rm -f icycle.stat
             exit 1
         fi
         if [ -n "$_IS" ] && [ "$_IS" == "PROBLEM" ]; then
-            echo " >>> The 'storage/icycle.stat' file indicates PROBLEM status - this stage already failed, exiting ... " 
+            echo " >>> The 'storage/icycle.stat' file indicates PROBLEM status."
+            echo "     Since this stage already failed, exiting ..." 
             echo ""
             echo "FAILED" > icycle.stat
             parchive move icycle.stat            
             exit 1          
         fi
     else
+        echo " >>> Marking this stage as a PROBLEM in the 'storage/icycle.stat' file."
+        echo "     Resubmitting the job."
+        echo ""    
         echo "PROBLEM" > icycle.stat
         parchive move icycle.stat
     fi
