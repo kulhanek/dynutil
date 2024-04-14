@@ -6,7 +6,7 @@ LOG="$PWD/single.log"
 set -o pipefail
 
 # ------------------------------------
-if [ -z "$AMS_ROOT" ]; then
+if [ -z "$AMS_ROOT_V9" ]; then
    echo "ERROR: This installation script works only in the Infinity environment!"
    exit 1
 fi
@@ -29,7 +29,7 @@ echo ""
 # build and install software ---------
 cmake -DCMAKE_INSTALL_PREFIX="$SOFTREPO/$PREFIX/$NAME/$VERS/$ARCH/$MODE" . | tee $LOG
 if [ $? -ne 0 ]; then exit 1; fi
-make -j "$N" install | tee -a $LOG
+make install | tee -a $LOG
 if [ $? -ne 0 ]; then exit 1; fi
 
 
