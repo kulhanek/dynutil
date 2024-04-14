@@ -72,7 +72,7 @@ if [ -f precycleJob.in ]; then
     sed -e "s/DYNUTIL_ALL_VERSION/$DYNUTIL_ALL_VERSION/g" < precycleJob.in > precycleJob || exit 1
     rm -f precycleJob.in
 else
-    sed -e "s/DYNUTIL_ALL_VERSION/$DYNUTIL_ALL_VERSION/g" < $DYNUTIL_DIR/lib/starters/precycleJob/precycleJob.in > precycleJob || exit 1
+    sed -e "s/DYNUTIL_ALL_VERSION/$DYNUTIL_ALL_VERSION/g" < $DYNUTIL_DIR/lib/starters/precycleJob.in > precycleJob || exit 1
 fi
 
 # make local storage directory
