@@ -1,7 +1,7 @@
 #!/bin/bash
 
-SITES="clusters"
-PREFIX="common"
+PREFIX="lcc"
+LOG="$PWD/single.log"
 
 set -o pipefail
 
@@ -27,17 +27,18 @@ echo "Build: $NAME:$VERS:$ARCH:$MODE"
 echo ""
 
 # build and install software ---------
-cmake -DCMAKE_INSTALL_PREFIX="$SOFTREPO/$PREFIX/$NAME/$VERS/$ARCH/$MODE" .
+cmake -DCMAKE_INSTALL_PREFIX="$SOFTREPO/$PREFIX/$NAME/$VERS/$ARCH/$MODE" . | tee $LOG
+if [ $? -ne 0 ]; then exit 1; fi
+make -j "$N" install | tee -a $LOG
 if [ $? -ne 0 ]; then exit 1; fi
 
-make install
-if [ $? -ne 0 ]; then exit 1; fi
 
 # prepare build file -----------------
-SOFTBLDS="$AMS_ROOT/etc/map/builds/$PREFIX"
-VERIDX=`ams-map-manip newverindex $NAME:$VERS:$ARCH:$MODE`
+SOFTBLDS="$SOFTREPO/$PREFIX/_ams_bundle/blds/"
+cd $SOFTBLDS || exit 1
+VERIDX=`ams-bundle newverindex $NAME:$VERS:$ARCH:$MODE`
 
-cat > $SOFTBLDS/$NAME:$VERS:$ARCH:$MODE.bld << EOF
+cat > $NAME:$VERS:$ARCH:$MODE.bld << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Advanced Module System (AMS) build file -->
 <build name="$NAME" ver="$VERS" arch="$ARCH" mode="$MODE" verindx="$VERIDX">
@@ -50,18 +51,10 @@ EOF
 if [ $? -ne 0 ]; then exit 1; fi
 
 echo ""
-echo "Adding builds ..."
-ams-map-manip addbuilds $SITES $NAME:$VERS:$ARCH:$MODE >> ams.log 2>&1
-if [ $? -ne 0 ]; then echo ">>> ERROR: see ams.log"; exit 1; fi
+echo "Rebuilding bundle ..."
+ams-bundle rebuild | tee -a $LOG
+if [ $? -ne 0 ]; then exit 1; fi
 
-echo "Distribute builds ..."
-ams-map-manip distribute >> ams.log 2>&1
-if [ $? -ne 0 ]; then echo ">>> ERROR: see ams.log"; exit 1; fi
-
-echo "Rebuilding cache ..."
-ams-cache rebuildall >> ams.log 2>&1
-if [ $? -ne 0 ]; then echo ">>> ERROR: see ams.log"; exit 1; fi
-
-echo "Log file: ams.log"
+echo "LOG: $LOG"
 echo ""
 
