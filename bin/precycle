@@ -297,8 +297,9 @@ function archive_results() {
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mdinfo${SUFFIX}"
     fi
 
-    # PMFLib files ---------------------------
+# PMFLib files -----------------------------------
 
+# ABF --------------------------------------------
     if [ -f "_abf.out" ]; then
         mv "_abf.out" "$STAGE_STRING.abfout${SUFFIX}"
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfout${SUFFIX}"
@@ -307,28 +308,25 @@ function archive_results() {
         mv "_abf.rst" "$STAGE_STRING.abfrst${SUFFIX}"
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfrst${SUFFIX}"
     fi
-    # ifc is kept for backward compatibility
-    if [ -f "_abf.ifc" ]; then
-        mv "_abf.ifc" "$STAGE_STRING.abfifc${SUFFIX}"
-        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abfifc${SUFFIX}"
+    if [ -f "_abf.trj" ]; then
+        mv "_abf.trj" "$STAGE_STRING.abftrj${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abftrj${SUFFIX}"
     fi
-    # icf - instantaneous collective forces
-    if [ -f "_abf.icf" ]; then
-        mv "_abf.icf" "$STAGE_STRING.abficf${SUFFIX}"
-        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.abficf${SUFFIX}"
-    fi
+# RST --------------------------------------------
     if [ -f "_rst.out" ]; then
         mv "_rst.out" "$STAGE_STRING.rstout${SUFFIX}"
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.rstout${SUFFIX}"
     fi
-    if [ -f "_rst.rst" ]; then
-        mv "_rst.rst" "$STAGE_STRING.rstrst${SUFFIX}"
-        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.rstrst${SUFFIX}"
+    if [ -f "_rst.hist" ]; then
+        mv "_rst.hist" "$STAGE_STRING.rsthist${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.rsthist${SUFFIX}"
     fi
+# MON --------------------------------------------
     if [ -f "_mon.out" ]; then
         mv "_mon.out" "$STAGE_STRING.monout${SUFFIX}"
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.monout${SUFFIX}"
     fi
+# CTS --------------------------------------------
     if [ -f "_cst.out" ]; then
         mv "_cst.out" "$STAGE_STRING.cstout${SUFFIX}"
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.cstout${SUFFIX}"
@@ -337,6 +335,11 @@ function archive_results() {
         mv "_cst.rst" "$STAGE_STRING.cstrst${SUFFIX}"
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.cstrst${SUFFIX}"
     fi
+    if [ -f "_cst.trj" ]; then
+        mv "_cst.trj" "$STAGE_STRING.csttrj${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.csttrj${SUFFIX}"
+    fi
+# MTD --------------------------------------------
     if [ -f "_mtd.out" ]; then
         mv "_mtd.out" "$STAGE_STRING.mtdout${SUFFIX}"
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdout${SUFFIX}"
@@ -345,14 +348,15 @@ function archive_results() {
         mv "_mtd.rst" "$STAGE_STRING.mtdrst${SUFFIX}"
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdrst${SUFFIX}"
     fi
-    if [ -f "_mtd.cvs" ]; then
-        mv "_mtd.cvs" "$STAGE_STRING.mtdcvs${SUFFIX}"
-        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdcvs${SUFFIX}"
+    if [ -f "_mtd.trj" ]; then
+        mv "_mtd.trj" "$STAGE_STRING.mtdtrj${SUFFIX}"
+        FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdtrj${SUFFIX}"
     fi
     if [ -f "_mtd.hills" ]; then
         mv "_mtd.hills" "$STAGE_STRING.mtdhills${SUFFIX}"
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.mtdhills${SUFFIX}"
     fi
+# ------------------------------------------------
     if [ -f "_stm.out" ]; then
         mv "_stm.out" "$STAGE_STRING.stmout${SUFFIX}"
         FILES_TO_ARCHIVE="$FILES_TO_ARCHIVE $STAGE_STRING.stmout${SUFFIX}"
